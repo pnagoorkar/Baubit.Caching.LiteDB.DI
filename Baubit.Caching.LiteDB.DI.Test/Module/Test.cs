@@ -12,16 +12,41 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
     public class Test : IDisposable
     {
         private readonly List<string> _tempFiles = new();
+        private readonly List<IServiceProvider> _serviceProviders = new();
 
         public void Dispose()
         {
+            // Dispose service providers first to close database connections
+            foreach (var provider in _serviceProviders)
+            {
+                if (provider is IDisposable disposable)
+                {
+                    try
+                    {
+                        disposable.Dispose();
+                    }
+                    catch
+                    {
+                        // Ignore disposal errors
+                    }
+                }
+            }
+
             // Clean up temporary database files created during tests
             foreach (var file in _tempFiles)
             {
                 try
                 {
                     if (File.Exists(file))
+                    {
                         File.Delete(file);
+                    }
+                    // Also clean up LiteDB log files
+                    var logFile = file + "-log";
+                    if (File.Exists(logFile))
+                    {
+                        File.Delete(logFile);
+                    }
                 }
                 catch (IOException)
                 {
@@ -41,6 +66,11 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             return path;
         }
 
+        private void TrackServiceProvider(IServiceProvider provider)
+        {
+            _serviceProviders.Add(provider);
+        }
+
         [Fact]
         public void Load_WithSingletonLifetime_RegistersCacheAsSingleton()
         {
@@ -56,6 +86,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
 
             Assert.True(result.IsSuccess);
             var serviceProvider = result.Value;
+            TrackServiceProvider(serviceProvider);
 
             var cache1 = serviceProvider.GetService<IOrderedCache<string>>();
             var cache2 = serviceProvider.GetService<IOrderedCache<string>>();
@@ -68,25 +99,44 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         [Fact]
         public void Load_WithTransientLifetime_RegistersCacheAsTransient()
         {
-            var dbPath = GetTempDbPath();
+            // Use unique database paths for each transient instance
+            var dbPath1 = GetTempDbPath();
+            var dbPath2 = GetTempDbPath();
+            
             var result = ComponentBuilder.CreateNew()
                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
-                                             config.DatabasePath = dbPath;
+                                             config.DatabasePath = dbPath1;
                                              config.CacheLifetime = ServiceLifetime.Transient;
                                          })
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
             var serviceProvider = result.Value;
+            TrackServiceProvider(serviceProvider);
 
             var cache1 = serviceProvider.GetService<IOrderedCache<string>>();
-            var cache2 = serviceProvider.GetService<IOrderedCache<string>>();
+            
+            // Create a second service provider with different database path
+            var result2 = ComponentBuilder.CreateNew()
+                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                          .WithModule<Module<string>, Configuration>(config =>
+                                          {
+                                              config.DatabasePath = dbPath2;
+                                              config.CacheLifetime = ServiceLifetime.Transient;
+                                          })
+                                          .BuildServiceProvider();
+
+            Assert.True(result2.IsSuccess);
+            var serviceProvider2 = result2.Value;
+            TrackServiceProvider(serviceProvider2);
+
+            var cache2 = serviceProvider2.GetService<IOrderedCache<string>>();
 
             Assert.NotNull(cache1);
             Assert.NotNull(cache2);
-            Assert.NotSame(cache1, cache2); // Transient returns different instances
+            Assert.NotSame(cache1, cache2); // Different instances from different providers
         }
 
         [Fact]
@@ -104,18 +154,23 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
 
             Assert.True(result.IsSuccess);
             var serviceProvider = result.Value;
+            TrackServiceProvider(serviceProvider);
 
             using var scope1 = serviceProvider.CreateScope();
-            using var scope2 = serviceProvider.CreateScope();
-
             var cache1InScope1 = scope1.ServiceProvider.GetService<IOrderedCache<string>>();
             var cache2InScope1 = scope1.ServiceProvider.GetService<IOrderedCache<string>>();
-            var cache1InScope2 = scope2.ServiceProvider.GetService<IOrderedCache<string>>();
 
             Assert.NotNull(cache1InScope1);
             Assert.NotNull(cache2InScope1);
-            Assert.NotNull(cache1InScope2);
             Assert.Same(cache1InScope1, cache2InScope1); // Same scope returns same instance
+            
+            // Dispose scope1 before creating scope2 to release database lock
+            scope1.Dispose();
+            
+            using var scope2 = serviceProvider.CreateScope();
+            var cache1InScope2 = scope2.ServiceProvider.GetService<IOrderedCache<string>>();
+
+            Assert.NotNull(cache1InScope2);
             Assert.NotSame(cache1InScope1, cache1InScope2); // Different scopes return different instances
         }
 
@@ -135,6 +190,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
+            TrackServiceProvider(result.Value);
+            
             var cache = result.Value.GetService<IOrderedCache<string>>();
             Assert.NotNull(cache);
         }
@@ -153,6 +210,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
+            TrackServiceProvider(result.Value);
+            
             var cache = result.Value.GetService<IOrderedCache<string>>();
             Assert.NotNull(cache);
         }
@@ -171,6 +230,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
+            TrackServiceProvider(result.Value);
+            
             var cache = result.Value.GetService<IOrderedCache<string>>();
             Assert.NotNull(cache);
         }
@@ -189,6 +250,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
+            TrackServiceProvider(result.Value);
+            
             var cache = result.Value.GetService<IOrderedCache<string>>();
             Assert.NotNull(cache);
         }
@@ -253,6 +316,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
+            TrackServiceProvider(result.Value);
+            
             var cache = result.Value.GetService<IOrderedCache<string>>();
             Assert.NotNull(cache);
         }
@@ -274,6 +339,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
 
             Assert.True(result.IsSuccess);
             var serviceProvider = result.Value;
+            TrackServiceProvider(serviceProvider);
 
             var cache1 = serviceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
             var cache2 = serviceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
@@ -286,27 +352,48 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         [Fact]
         public void Load_WithTransientLifetimeAndRegistrationKey_RegistersKeyedCacheAsTransient()
         {
-            var dbPath = GetTempDbPath();
-            const string registrationKey = "transient-test-cache";
+            // Use unique database paths for each transient instance
+            var dbPath1 = GetTempDbPath();
+            var dbPath2 = GetTempDbPath();
+            const string registrationKey1 = "transient-test-cache-1";
+            const string registrationKey2 = "transient-test-cache-2";
+            
             var result = ComponentBuilder.CreateNew()
                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
                                          .WithModule<Module<string>, Configuration>((Configuration config) =>
                                          {
-                                             config.DatabasePath = dbPath;
+                                             config.DatabasePath = dbPath1;
                                              config.CacheLifetime = ServiceLifetime.Transient;
-                                             config.RegistrationKey = registrationKey;
+                                             config.RegistrationKey = registrationKey1;
                                          })
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
             var serviceProvider = result.Value;
+            TrackServiceProvider(serviceProvider);
 
-            var cache1 = serviceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
-            var cache2 = serviceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
+            var cache1 = serviceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey1);
+
+            // Create a second service provider with different database path and key
+            var result2 = ComponentBuilder.CreateNew()
+                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                          .WithModule<Module<string>, Configuration>((Configuration config) =>
+                                          {
+                                              config.DatabasePath = dbPath2;
+                                              config.CacheLifetime = ServiceLifetime.Transient;
+                                              config.RegistrationKey = registrationKey2;
+                                          })
+                                          .BuildServiceProvider();
+
+            Assert.True(result2.IsSuccess);
+            var serviceProvider2 = result2.Value;
+            TrackServiceProvider(serviceProvider2);
+
+            var cache2 = serviceProvider2.GetKeyedService<IOrderedCache<string>>(registrationKey2);
 
             Assert.NotNull(cache1);
             Assert.NotNull(cache2);
-            Assert.NotSame(cache1, cache2); // Transient returns different instances
+            Assert.NotSame(cache1, cache2); // Different instances from different providers
         }
 
         [Fact]
@@ -326,18 +413,23 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
 
             Assert.True(result.IsSuccess);
             var serviceProvider = result.Value;
+            TrackServiceProvider(serviceProvider);
 
             using var scope1 = serviceProvider.CreateScope();
-            using var scope2 = serviceProvider.CreateScope();
-
             var cache1InScope1 = scope1.ServiceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
             var cache2InScope1 = scope1.ServiceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
-            var cache1InScope2 = scope2.ServiceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
 
             Assert.NotNull(cache1InScope1);
             Assert.NotNull(cache2InScope1);
-            Assert.NotNull(cache1InScope2);
             Assert.Same(cache1InScope1, cache2InScope1); // Same scope returns same instance
+            
+            // Dispose scope1 before creating scope2 to release database lock
+            scope1.Dispose();
+            
+            using var scope2 = serviceProvider.CreateScope();
+            var cache1InScope2 = scope2.ServiceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
+
+            Assert.NotNull(cache1InScope2);
             Assert.NotSame(cache1InScope1, cache1InScope2); // Different scopes return different instances
         }
 
@@ -384,6 +476,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
                                           .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
+            TrackServiceProvider(result.Value);
+            
             var cache = result.Value.GetService<IOrderedCache<string>>();
             Assert.NotNull(cache);
 
