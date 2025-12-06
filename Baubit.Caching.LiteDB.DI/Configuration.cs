@@ -1,6 +1,6 @@
 using Baubit.Caching.DI;
 
-namespace Baubit.Caching.LiteDB.DI.LiteDB
+namespace Baubit.Caching.LiteDB.DI
 {
     /// <summary>
     /// Configuration for the LiteDB caching module.

@@ -6,11 +6,11 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 
-namespace Baubit.Caching.LiteDB.DI.LiteDB
+namespace Baubit.Caching.LiteDB.DI
 {
     /// <summary>
     /// Dependency injection module for registering an <see cref="IOrderedCache{TValue}"/> with LiteDB-backed L2 storage.
-    /// Uses in-memory <see cref="Store{TValue}"/> for L1 (when enabled) and <see cref="Baubit.Caching.LiteDB.Store{TValue}"/> for L2.
+    /// Uses in-memory <see cref="Store{TValue}"/> for L1 (when enabled) and <see cref="Store{TValue}"/> for L2.
     /// </summary>
     /// <typeparam name="TValue">The type of values stored in the cache.</typeparam>
     public class Module<TValue> : AModule<TValue, Configuration>
@@ -41,17 +41,17 @@ namespace Baubit.Caching.LiteDB.DI.LiteDB
         /// <returns>A bounded <see cref="Store{TValue}"/> configured with L1 capacity settings.</returns>
         protected override IStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.InMemory.Store<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new InMemory.Store<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         /// <summary>
         /// Builds the L2 data store as a LiteDB-backed persistent store.
         /// </summary>
         /// <param name="serviceProvider">The service provider to resolve <see cref="ILoggerFactory"/>.</param>
-        /// <returns>A <see cref="Baubit.Caching.LiteDB.Store{TValue}"/> for persistent L2 storage.</returns>
+        /// <returns>A <see cref="Store{TValue}"/> for persistent L2 storage.</returns>
         protected override IStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.LiteDB.Store<TValue>(
+            return new Store<TValue>(
                 Configuration.DatabasePath,
                 Configuration.CollectionName,
                 serviceProvider.GetRequiredService<ILoggerFactory>());
