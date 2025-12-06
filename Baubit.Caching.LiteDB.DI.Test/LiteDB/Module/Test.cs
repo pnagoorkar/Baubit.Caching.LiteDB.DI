@@ -23,9 +23,13 @@ namespace Baubit.Caching.LiteDB.DI.Test.LiteDB.Module
                     if (File.Exists(file))
                         File.Delete(file);
                 }
-                catch
+                catch (IOException)
                 {
-                    // Ignore cleanup errors
+                    // Ignore IO errors during cleanup
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Ignore access errors during cleanup
                 }
             }
         }
