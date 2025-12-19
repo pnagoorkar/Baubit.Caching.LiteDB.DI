@@ -23,9 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Baubit.Caching.DI" Version="2025.49.3" />
-    <PackageReference Include="Baubit.Caching.LiteDB" Version="2025.49.1" />
-    <PackageReference Include="Baubit.DI.Extensions" Version="2025.49.3" />
+    <PackageReference Include="Baubit.Caching.DI" Version="2025.51.2" />
+    <PackageReference Include="Baubit.Caching.LiteDB" Version="2025.51.1" />
+    <PackageReference Include="Baubit.DI.Extensions" Version="2025.51.1" />
   </ItemGroup>
 
 </Project>
