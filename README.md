@@ -62,12 +62,16 @@ await Host.CreateApplicationBuilder()
 Load modules programmatically using `IComponent`.
 
 ```csharp
-public class AppComponent : AComponent
+public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, LoggingConfiguration>(ConfigureLogging)
-                      .WithModule<Module<string>, Configuration>(ConfigureCaching);
+        return builder.WithModule<LoggingModule, LoggingConfiguration>(
+                          ConfigureLogging, 
+                          config => new LoggingModule(config))
+                      .WithModule<Module<string>, Configuration>(
+                          ConfigureCaching,
+                          config => new Module<string>(config));
     }
     
     private void ConfigureLogging(LoggingConfiguration config) 
@@ -125,23 +129,25 @@ var cache = serviceProvider.GetService<IOrderedCache<string>>();
 Register multiple cache instances with different keys for multi-tenancy or different data types.
 
 ```csharp
-public class AppComponent : AComponent
+public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, LoggingConfiguration>(ConfigureLogging)
+        return builder.WithModule<LoggingModule, LoggingConfiguration>(
+                          ConfigureLogging, 
+                          config => new LoggingModule(config))
                       .WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "user-cache.db";
                           config.RegistrationKey = "user-cache";
                           config.CacheLifetime = ServiceLifetime.Singleton;
-                      })
+                      }, config => new Module<string>(config))
                       .WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "product-cache.db";
                           config.RegistrationKey = "product-cache";
                           config.CacheLifetime = ServiceLifetime.Singleton;
-                      });
+                      }, config => new Module<string>(config));
     }
 }
 
@@ -176,7 +182,7 @@ var productCache = serviceProvider.GetKeyedService<IOrderedCache<string>>("produ
 
 ### `Configuration`
 
-Configuration class for the LiteDB caching module. Extends `AConfiguration` from Baubit.Caching.DI.
+Configuration class for the LiteDB caching module. Extends `Configuration` from Baubit.Caching.DI.
 
 ### `Module<TValue>`
 
