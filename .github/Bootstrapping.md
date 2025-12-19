@@ -107,7 +107,7 @@ namespace Baubit.{ProjectName}
     /// Configuration class for the {ProjectName} module.
     /// {Describe what the configuration controls}
     /// </summary>
-    public class Configuration : AConfiguration
+    public class Configuration : Baubit.DI.Configuration
     {
         // Add configuration properties with XML documentation
         // Example:
@@ -136,7 +136,7 @@ namespace Baubit.{ProjectName}
     /// DI module for registering {service description} with Microsoft.Extensions.DependencyInjection.
     /// {Describe what the module does}
     /// </summary>
-    public class Module : AModule<Configuration>
+    public class Module : Baubit.DI.Module<Configuration>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Module"/> class from configuration.
@@ -301,7 +301,7 @@ namespace Baubit.{ProjectName}.Test.Module
                                          .WithModule<{ProjectName}.Module, {ProjectName}.Configuration>(config =>
                                          {
                                              // Configure module
-                                         })
+                                         }, config => new {ProjectName}.Module(config))
                                          .BuildServiceProvider();
 
             // Assert
@@ -329,7 +329,7 @@ namespace Baubit.{ProjectName}.Test.Module
             var module = new {ProjectName}.Module(configuration);
 
             // Assert
-            Assert.IsAssignableFrom<Baubit.DI.AModule<{ProjectName}.Configuration>>(module);
+            Assert.IsAssignableFrom<Baubit.DI.Module<{ProjectName}.Configuration>>(module);
         }
     }
 }
@@ -422,7 +422,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 Always include:
 ```xml
-<PackageReference Include="Baubit.DI.Extensions" Version="2025.49.3" />
+<PackageReference Include="Baubit.DI.Extensions" Version="2025.51.1" />
 ```
 
 Add domain-specific packages as needed.
@@ -488,8 +488,8 @@ After repository setup, the user must:
 
 ## Key Patterns to Follow
 
-1. **Configuration inherits from `AConfiguration`**
-2. **Module inherits from `AModule<Configuration>`**
+1. **Configuration inherits from `Baubit.DI.Configuration`**
+2. **Module inherits from `Baubit.DI.Module<Configuration>`**
 3. **Module has two constructors**: `IConfiguration` and `Configuration`
 4. **Module overrides `Load(IServiceCollection services)`**
 5. **Always call `base.Load(services)` at end of Load method**
