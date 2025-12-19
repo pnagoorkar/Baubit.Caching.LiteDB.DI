@@ -10,6 +10,8 @@
 
 Dependency injection module for [Baubit.Caching.LiteDB](https://github.com/pnagoorkar/Baubit.Caching.LiteDB). Registers `IOrderedCache<TValue>` with LiteDB-backed L2 persistent storage in your DI container.
 
+> **Note:** This package provides a **generic module** (`Module<TValue>`) that can only be loaded programmatically. For configuration-based loading from appsettings.json, you'll need to create a concrete module with `[BaubitModule]` attribute and register it using a `ModuleRegistry`. See [Configuration-Based Loading](#configuration-based-loading-advanced) for details.
+
 ## Installation
 
 ```bash
@@ -24,63 +26,46 @@ Install-Package Baubit.Caching.LiteDB.DI
 
 ## Quick Start
 
-### Pattern 1: Modules from appsettings.json
+### Programmatic Module Loading
 
-Load modules from configuration. Module types and settings are defined in JSON.
+Load modules programmatically using `IComponent`. This is the **recommended approach** for the generic `Module<TValue>`.
 
 ```csharp
-await Host.CreateApplicationBuilder()
-          .UseConfiguredServiceProviderFactory()
-          .Build()
-          .RunAsync();
-```
+using Baubit.Caching.LiteDB.DI;
+using Baubit.DI;
+using Baubit.DI.Extensions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-**appsettings.json:**
-```json
+// Simple logging module for registering ILoggerFactory
+public class LoggingModule : Baubit.DI.Module<Baubit.DI.Configuration>
 {
-  "type": "Baubit.Caching.LiteDB.DI.LiteDB.Module`1[[System.String]], Baubit.Caching.LiteDB.DI",
-  "configuration": {
-    "databasePath": "my-cache.db",
-    "collectionName": "entries",
-    "includeL1Caching": true,
-    "l1MinCap": 128,
-    "l1MaxCap": 8192,
-    "cacheLifetime": "Singleton",
-    "registrationKey": "my-cache",
-    "modules": [
-      {
-        "type": "MyApp.LoggingModule, MyApp",
-        "configuration": {}
-      }
-    ]
-  }
+    public LoggingModule(Baubit.DI.Configuration config) : base(config) { }
+    
+    public override void Load(IServiceCollection services)
+    {
+        services.AddLogging();
+        base.Load(services);
+    }
 }
-```
 
-### Pattern 2: Modules from Code (IComponent)
-
-Load modules programmatically using `IComponent`.
-
-```csharp
-public class AppComponent : AComponent
+public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, LoggingConfiguration>(ConfigureLogging)
-                      .WithModule<Module<string>, Configuration>(ConfigureCaching);
-    }
-    
-    private void ConfigureLogging(LoggingConfiguration config) 
-    {
-        // configure as needed
-    }
-    
-    private void ConfigureCaching(Configuration config) 
-    {
-        config.DatabasePath = "cache.db";
-        config.CollectionName = "entries";
-        config.IncludeL1Caching = true;
-        config.CacheLifetime = ServiceLifetime.Singleton;
+        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
+                          _ => { }, 
+                          config => new LoggingModule(config))
+                      .WithModule<Module<string>, Configuration>(config =>
+                      {
+                          config.DatabasePath = "cache.db";
+                          config.CollectionName = "entries";
+                          config.IncludeL1Caching = true;
+                          config.L1MinCap = 128;
+                          config.L1MaxCap = 8192;
+                          config.CacheLifetime = ServiceLifetime.Singleton;
+                      }, config => new Module<string>(config));
     }
 }
 
@@ -90,20 +75,15 @@ await Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings())
           .RunAsync();
 ```
 
-### Pattern 3: Hybrid Loading (appsettings.json + IComponent)
-
-Combine configuration-based and code-based module loading.
-
-```csharp
-await Host.CreateApplicationBuilder()
-          .UseConfiguredServiceProviderFactory(componentsFactory: () => [new AppComponent()])
-          .Build()
-          .RunAsync();
-```
-
 ### Using AddModule Directly
 
+For direct service collection registration without the component builder.
+
 ```csharp
+using Baubit.Caching.LiteDB.DI;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
 var services = new ServiceCollection();
 services.AddLogging();
 
@@ -125,29 +105,141 @@ var cache = serviceProvider.GetService<IOrderedCache<string>>();
 Register multiple cache instances with different keys for multi-tenancy or different data types.
 
 ```csharp
-public class AppComponent : AComponent
+using Baubit.Caching.LiteDB.DI;
+using Baubit.DI;
+using Microsoft.Extensions.DependencyInjection;
+
+public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, LoggingConfiguration>(ConfigureLogging)
+        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
+                          _ => { }, 
+                          config => new LoggingModule(config))
                       .WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "user-cache.db";
+                          config.CollectionName = "users";
                           config.RegistrationKey = "user-cache";
                           config.CacheLifetime = ServiceLifetime.Singleton;
-                      })
+                      }, config => new Module<string>(config))
                       .WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "product-cache.db";
+                          config.CollectionName = "products";
                           config.RegistrationKey = "product-cache";
                           config.CacheLifetime = ServiceLifetime.Singleton;
-                      });
+                      }, config => new Module<string>(config));
     }
 }
 
 // Resolve keyed services
 var userCache = serviceProvider.GetKeyedService<IOrderedCache<string>>("user-cache");
 var productCache = serviceProvider.GetKeyedService<IOrderedCache<string>>("product-cache");
+```
+
+## Configuration-Based Loading (Advanced)
+
+The generic `Module<TValue>` cannot be loaded from configuration because generic type parameters cannot be specified in JSON. To enable configuration-based loading, create a **concrete module** for your specific value type.
+
+### Step 1: Create a Concrete Module
+
+```csharp
+using Baubit.Caching.LiteDB.DI;
+using Baubit.DI;
+using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
+
+namespace MyApp.Caching
+{
+    /// <summary>
+    /// Concrete LiteDB cache module for string values.
+    /// Can be loaded from appsettings.json using the "litedb-string-cache" key.
+    /// </summary>
+    [BaubitModule("litedb-string-cache")]
+    public class LiteDBStringCacheModule : Module<string>
+    {
+        // Constructor for configuration-based loading
+        public LiteDBStringCacheModule(IConfiguration configuration) 
+            : base(configuration) { }
+        
+        // Constructor for programmatic loading
+        public LiteDBStringCacheModule(Configuration configuration, List<IModule> nestedModules = null) 
+            : base(configuration, nestedModules) { }
+    }
+}
+```
+
+### Step 2: Create Module Registry
+
+```csharp
+using Baubit.DI;
+
+namespace MyApp.Caching
+{
+    /// <summary>
+    /// Module registry for MyApp caching modules.
+    /// MUST call Register() before UseConfiguredServiceProviderFactory().
+    /// </summary>
+    [GeneratedModuleRegistry]
+    internal static partial class CachingModuleRegistry
+    {
+        // Register() method will be generated automatically
+    }
+}
+```
+
+### Step 3: Register and Load
+
+> **CRITICAL:** You **MUST** call `CachingModuleRegistry.Register()` before `UseConfiguredServiceProviderFactory()`. This registers your modules with Baubit.DI's module registry. **Forgetting this step will cause your modules to not be found**, leading to frustrating runtime errors.
+
+```csharp
+using MyApp.Caching;
+using Microsoft.Extensions.Hosting;
+
+// REQUIRED: Register modules before loading
+CachingModuleRegistry.Register();
+
+await Host.CreateApplicationBuilder()
+          .UseConfiguredServiceProviderFactory()
+          .Build()
+          .RunAsync();
+```
+
+**appsettings.json:**
+```json
+{
+  "modules": [
+    {
+      "key": "litedb-string-cache",
+      "configuration": {
+        "databasePath": "my-cache.db",
+        "collectionName": "entries",
+        "includeL1Caching": true,
+        "l1MinCap": 128,
+        "l1MaxCap": 8192,
+        "cacheLifetime": "Singleton",
+        "registrationKey": "my-cache"
+      }
+    }
+  ]
+}
+```
+
+### Step 4: Hybrid Loading
+
+Combine configuration-based and programmatic loading:
+
+```csharp
+using MyApp.Caching;
+
+// MUST call Register() first
+CachingModuleRegistry.Register();
+
+await Host.CreateApplicationBuilder()
+          .UseConfiguredServiceProviderFactory(componentsFactory: () => [new AppComponent()])
+          .Build()
+          .RunAsync();
 ```
 
 ## Features
@@ -176,7 +268,7 @@ var productCache = serviceProvider.GetKeyedService<IOrderedCache<string>>("produ
 
 ### `Configuration`
 
-Configuration class for the LiteDB caching module. Extends `AConfiguration` from Baubit.Caching.DI.
+Configuration class for the LiteDB caching module. Extends `Configuration` from Baubit.Caching.DI.
 
 ### `Module<TValue>`
 

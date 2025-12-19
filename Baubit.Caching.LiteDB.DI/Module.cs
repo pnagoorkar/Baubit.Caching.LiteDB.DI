@@ -13,7 +13,7 @@ namespace Baubit.Caching.LiteDB.DI
     /// Uses in-memory <see cref="Store{TValue}"/> for L1 (when enabled) and <see cref="Store{TValue}"/> for L2.
     /// </summary>
     /// <typeparam name="TValue">The type of values stored in the cache.</typeparam>
-    public class Module<TValue> : AModule<TValue, Configuration>
+    public class Module<TValue> : Baubit.Caching.DI.Module<TValue, Configuration>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Module{TValue}"/> class
