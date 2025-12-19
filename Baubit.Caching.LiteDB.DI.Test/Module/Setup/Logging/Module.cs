@@ -9,7 +9,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module.Setup.Logging
     /// <summary>
     /// Module that registers <see cref="ILoggerFactory"/> for dependency injection.
     /// </summary>
-    public class Module : AModule<Configuration>
+    public class Module : Baubit.DI.Module<Configuration>
     {
         public Module(IConfiguration configuration) : base(configuration)
         {

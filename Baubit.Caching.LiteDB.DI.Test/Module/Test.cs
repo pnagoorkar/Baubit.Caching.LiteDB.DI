@@ -76,12 +76,12 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         {
             var dbPath = GetTempDbPath();
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
                                              config.DatabasePath = dbPath;
                                              config.CacheLifetime = ServiceLifetime.Singleton;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -104,12 +104,12 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var dbPath2 = GetTempDbPath();
             
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
                                              config.DatabasePath = dbPath1;
                                              config.CacheLifetime = ServiceLifetime.Transient;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -120,12 +120,12 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             
             // Create a second service provider with different database path
             var result2 = ComponentBuilder.CreateNew()
-                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                           .WithModule<Module<string>, Configuration>(config =>
                                           {
                                               config.DatabasePath = dbPath2;
                                               config.CacheLifetime = ServiceLifetime.Transient;
-                                          })
+                                          }, config => new Module<string>(config))
                                           .BuildServiceProvider();
 
             Assert.True(result2.IsSuccess);
@@ -144,12 +144,12 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         {
             var dbPath = GetTempDbPath();
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
                                              config.DatabasePath = dbPath;
                                              config.CacheLifetime = ServiceLifetime.Scoped;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -179,14 +179,14 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         {
             var dbPath = GetTempDbPath();
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
                                              config.DatabasePath = dbPath;
                                              config.IncludeL1Caching = true;
                                              config.L1MinCap = 64;
                                              config.L1MaxCap = 1024;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -201,12 +201,12 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         {
             var dbPath = GetTempDbPath();
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
                                              config.DatabasePath = dbPath;
                                              config.IncludeL1Caching = false;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -221,12 +221,12 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         {
             var dbPath = GetTempDbPath();
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
                                              config.DatabasePath = dbPath;
                                              config.CacheConfiguration = new Caching.Configuration();
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -241,12 +241,12 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         {
             var dbPath = GetTempDbPath();
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
                                              config.DatabasePath = dbPath;
                                              config.CollectionName = "custom_collection";
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -303,7 +303,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
 
             // Test that the module loads correctly with the same config values
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>(config =>
                                          {
                                              config.DatabasePath = dbPath;
@@ -312,7 +312,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
                                              config.L1MinCap = 64;
                                              config.L1MaxCap = 1024;
                                              config.CacheLifetime = ServiceLifetime.Singleton;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -328,13 +328,13 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var dbPath = GetTempDbPath();
             const string registrationKey = "singleton-test-cache";
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>((Configuration config) =>
                                          {
                                              config.DatabasePath = dbPath;
                                              config.CacheLifetime = ServiceLifetime.Singleton;
                                              config.RegistrationKey = registrationKey;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -359,13 +359,13 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             const string registrationKey2 = "transient-test-cache-2";
             
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>((Configuration config) =>
                                          {
                                              config.DatabasePath = dbPath1;
                                              config.CacheLifetime = ServiceLifetime.Transient;
                                              config.RegistrationKey = registrationKey1;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -376,13 +376,13 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
 
             // Create a second service provider with different database path and key
             var result2 = ComponentBuilder.CreateNew()
-                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                           .WithModule<Module<string>, Configuration>((Configuration config) =>
                                           {
                                               config.DatabasePath = dbPath2;
                                               config.CacheLifetime = ServiceLifetime.Transient;
                                               config.RegistrationKey = registrationKey2;
-                                          })
+                                          }, config => new Module<string>(config))
                                           .BuildServiceProvider();
 
             Assert.True(result2.IsSuccess);
@@ -402,13 +402,13 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var dbPath = GetTempDbPath();
             const string registrationKey = "scoped-test-cache";
             var result = ComponentBuilder.CreateNew()
-                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                         .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                          .WithModule<Module<string>, Configuration>((Configuration config) =>
                                          {
                                              config.DatabasePath = dbPath;
                                              config.CacheLifetime = ServiceLifetime.Scoped;
                                              config.RegistrationKey = registrationKey;
-                                         })
+                                         }, config => new Module<string>(config))
                                          .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);
@@ -457,7 +457,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
 
             var module = new Module<string>(configuration);
 
-            Assert.IsAssignableFrom<Caching.DI.AModule<string, Configuration>>(module);
+            Assert.IsAssignableFrom<Caching.DI.Module<string, Configuration>>(module);
         }
 
         [Fact]
@@ -467,12 +467,12 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             
             // Create a cache and add data
             var result = ComponentBuilder.CreateNew()
-                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { })
+                                          .WithModule<Setup.Logging.Module, Setup.Logging.Configuration>((Setup.Logging.Configuration _) => { }, config => new Setup.Logging.Module(config))
                                           .WithModule<Module<string>, Configuration>(config =>
                                           {
                                               config.DatabasePath = dbPath;
                                               config.CacheLifetime = ServiceLifetime.Singleton;
-                                          })
+                                          }, config => new Module<string>(config))
                                           .BuildServiceProvider();
 
             Assert.True(result.IsSuccess);

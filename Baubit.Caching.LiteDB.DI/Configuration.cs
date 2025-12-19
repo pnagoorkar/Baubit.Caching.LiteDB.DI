@@ -6,7 +6,7 @@ namespace Baubit.Caching.LiteDB.DI
     /// Configuration for the LiteDB caching module.
     /// Stores cache data in a LiteDB database for persistent L2 storage.
     /// </summary>
-    public class Configuration : AConfiguration
+    public class Configuration : Baubit.Caching.DI.Configuration
     {
         /// <summary>
         /// Gets or sets the path to the LiteDB database file.
