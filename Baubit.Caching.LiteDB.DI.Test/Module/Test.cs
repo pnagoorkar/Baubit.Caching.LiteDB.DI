@@ -88,8 +88,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var serviceProvider = result.Value;
             TrackServiceProvider(serviceProvider);
 
-            var cache1 = serviceProvider.GetService<IOrderedCache<string>>();
-            var cache2 = serviceProvider.GetService<IOrderedCache<string>>();
+            var cache1 = serviceProvider.GetService<IOrderedCache<Guid, string>>();
+            var cache2 = serviceProvider.GetService<IOrderedCache<Guid, string>>();
 
             Assert.NotNull(cache1);
             Assert.NotNull(cache2);
@@ -116,7 +116,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var serviceProvider = result.Value;
             TrackServiceProvider(serviceProvider);
 
-            var cache1 = serviceProvider.GetService<IOrderedCache<string>>();
+            var cache1 = serviceProvider.GetService<IOrderedCache<Guid, string>>();
             
             // Create a second service provider with different database path
             var result2 = ComponentBuilder.CreateNew()
@@ -132,7 +132,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var serviceProvider2 = result2.Value;
             TrackServiceProvider(serviceProvider2);
 
-            var cache2 = serviceProvider2.GetService<IOrderedCache<string>>();
+            var cache2 = serviceProvider2.GetService<IOrderedCache<Guid, string>>();
 
             Assert.NotNull(cache1);
             Assert.NotNull(cache2);
@@ -157,8 +157,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             TrackServiceProvider(serviceProvider);
 
             using var scope1 = serviceProvider.CreateScope();
-            var cache1InScope1 = scope1.ServiceProvider.GetService<IOrderedCache<string>>();
-            var cache2InScope1 = scope1.ServiceProvider.GetService<IOrderedCache<string>>();
+            var cache1InScope1 = scope1.ServiceProvider.GetService<IOrderedCache<Guid, string>>();
+            var cache2InScope1 = scope1.ServiceProvider.GetService<IOrderedCache<Guid, string>>();
 
             Assert.NotNull(cache1InScope1);
             Assert.NotNull(cache2InScope1);
@@ -168,7 +168,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             scope1.Dispose();
             
             using var scope2 = serviceProvider.CreateScope();
-            var cache1InScope2 = scope2.ServiceProvider.GetService<IOrderedCache<string>>();
+            var cache1InScope2 = scope2.ServiceProvider.GetService<IOrderedCache<Guid, string>>();
 
             Assert.NotNull(cache1InScope2);
             Assert.NotSame(cache1InScope1, cache1InScope2); // Different scopes return different instances
@@ -192,7 +192,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             Assert.True(result.IsSuccess);
             TrackServiceProvider(result.Value);
             
-            var cache = result.Value.GetService<IOrderedCache<string>>();
+            var cache = result.Value.GetService<IOrderedCache<Guid, string>>();
             Assert.NotNull(cache);
         }
 
@@ -212,7 +212,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             Assert.True(result.IsSuccess);
             TrackServiceProvider(result.Value);
             
-            var cache = result.Value.GetService<IOrderedCache<string>>();
+            var cache = result.Value.GetService<IOrderedCache<Guid, string>>();
             Assert.NotNull(cache);
         }
 
@@ -232,7 +232,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             Assert.True(result.IsSuccess);
             TrackServiceProvider(result.Value);
             
-            var cache = result.Value.GetService<IOrderedCache<string>>();
+            var cache = result.Value.GetService<IOrderedCache<Guid, string>>();
             Assert.NotNull(cache);
         }
 
@@ -252,7 +252,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             Assert.True(result.IsSuccess);
             TrackServiceProvider(result.Value);
             
-            var cache = result.Value.GetService<IOrderedCache<string>>();
+            var cache = result.Value.GetService<IOrderedCache<Guid, string>>();
             Assert.NotNull(cache);
         }
 
@@ -318,7 +318,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             Assert.True(result.IsSuccess);
             TrackServiceProvider(result.Value);
             
-            var cache = result.Value.GetService<IOrderedCache<string>>();
+            var cache = result.Value.GetService<IOrderedCache<Guid, string>>();
             Assert.NotNull(cache);
         }
 
@@ -341,8 +341,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var serviceProvider = result.Value;
             TrackServiceProvider(serviceProvider);
 
-            var cache1 = serviceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
-            var cache2 = serviceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
+            var cache1 = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>(registrationKey);
+            var cache2 = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>(registrationKey);
 
             Assert.NotNull(cache1);
             Assert.NotNull(cache2);
@@ -372,7 +372,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var serviceProvider = result.Value;
             TrackServiceProvider(serviceProvider);
 
-            var cache1 = serviceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey1);
+            var cache1 = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>(registrationKey1);
 
             // Create a second service provider with different database path and key
             var result2 = ComponentBuilder.CreateNew()
@@ -389,7 +389,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             var serviceProvider2 = result2.Value;
             TrackServiceProvider(serviceProvider2);
 
-            var cache2 = serviceProvider2.GetKeyedService<IOrderedCache<string>>(registrationKey2);
+            var cache2 = serviceProvider2.GetKeyedService<IOrderedCache<Guid, string>>(registrationKey2);
 
             Assert.NotNull(cache1);
             Assert.NotNull(cache2);
@@ -416,8 +416,8 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             TrackServiceProvider(serviceProvider);
 
             using var scope1 = serviceProvider.CreateScope();
-            var cache1InScope1 = scope1.ServiceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
-            var cache2InScope1 = scope1.ServiceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
+            var cache1InScope1 = scope1.ServiceProvider.GetKeyedService<IOrderedCache<Guid, string>>(registrationKey);
+            var cache2InScope1 = scope1.ServiceProvider.GetKeyedService<IOrderedCache<Guid, string>>(registrationKey);
 
             Assert.NotNull(cache1InScope1);
             Assert.NotNull(cache2InScope1);
@@ -427,7 +427,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             scope1.Dispose();
             
             using var scope2 = serviceProvider.CreateScope();
-            var cache1InScope2 = scope2.ServiceProvider.GetKeyedService<IOrderedCache<string>>(registrationKey);
+            var cache1InScope2 = scope2.ServiceProvider.GetKeyedService<IOrderedCache<Guid, string>>(registrationKey);
 
             Assert.NotNull(cache1InScope2);
             Assert.NotSame(cache1InScope1, cache1InScope2); // Different scopes return different instances
@@ -457,7 +457,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
 
             var module = new Module<string>(configuration);
 
-            Assert.IsAssignableFrom<Caching.DI.Module<string, Configuration>>(module);
+            Assert.IsAssignableFrom<Caching.DI.Module<Guid, string, Configuration>>(module);
         }
 
         [Fact]
@@ -478,7 +478,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
             Assert.True(result.IsSuccess);
             TrackServiceProvider(result.Value);
             
-            var cache = result.Value.GetService<IOrderedCache<string>>();
+            var cache = result.Value.GetService<IOrderedCache<Guid, string>>();
             Assert.NotNull(cache);
 
             // Add an entry
