@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)<br/>
 [![Known Vulnerabilities](https://snyk.io/test/github/pnagoorkar/Baubit.Caching.LiteDB.DI/badge.svg)](https://snyk.io/test/github/pnagoorkar/Baubit.Caching.LiteDB.DI)
 
-Dependency injection module for [Baubit.Caching.LiteDB](https://github.com/pnagoorkar/Baubit.Caching.LiteDB). Registers `IOrderedCache<TValue>` with LiteDB-backed L2 persistent storage in your DI container.
+Dependency injection module for [Baubit.Caching.LiteDB](https://github.com/pnagoorkar/Baubit.Caching.LiteDB). Registers `IOrderedCache<Guid, TValue>` with LiteDB-backed L2 persistent storage and optional in-memory L1 caching in your DI container. Uses Guid (GuidV7) identifiers for time-ordered entries.
 
 > **Note:** This package provides a **generic module** (`Module<TValue>`) that can only be loaded programmatically. For configuration-based loading from appsettings.json, you'll need to create a concrete module with `[BaubitModule]` attribute and register it using a `ModuleRegistry`. See [Configuration-Based Loading](#configuration-based-loading-advanced) for details.
 
@@ -22,6 +22,40 @@ Or via NuGet Package Manager:
 
 ```
 Install-Package Baubit.Caching.LiteDB.DI
+```
+
+## Breaking Changes in v2026.1.1
+
+### Cache Interface Requires ID Type
+
+`IOrderedCache<TValue>` changed to `IOrderedCache<Guid, TValue>` to support generic ID types. This module uses Guid (GuidV7) identifiers.
+
+**Before:**
+```csharp
+IOrderedCache<string> cache = serviceProvider.GetService<IOrderedCache<string>>();
+```
+
+**After:**
+```csharp
+IOrderedCache<Guid, string> cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
+```
+
+### LiteDB Store Uses StoreGuid
+
+The L2 store now uses `StoreGuid<TValue>` instead of `Store<TValue>` for explicit Guid-based ID generation with automatic GuidV7 generation.
+
+**Impact:** Module implementation updated to use `StoreGuid<TValue>`. No user code changes required if using DI registration.
+
+### Migration Guide
+
+Update service resolution to include the `Guid` type parameter:
+
+```csharp
+// Update GetService calls
+var cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
+
+// Update GetKeyedService calls
+var cache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>("my-cache");
 ```
 
 ## Quick Start
@@ -97,7 +131,7 @@ var module = new Module<string>(new Configuration
 module.Load(services);
 
 var serviceProvider = services.BuildServiceProvider();
-var cache = serviceProvider.GetService<IOrderedCache<string>>();
+var cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
 ```
 
 ## Keyed Service Registration
@@ -134,8 +168,8 @@ public class AppComponent : Component
 }
 
 // Resolve keyed services
-var userCache = serviceProvider.GetKeyedService<IOrderedCache<string>>("user-cache");
-var productCache = serviceProvider.GetKeyedService<IOrderedCache<string>>("product-cache");
+var userCache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>("user-cache");
+var productCache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>("product-cache");
 ```
 
 ## Configuration-Based Loading (Advanced)
@@ -244,6 +278,7 @@ await Host.CreateApplicationBuilder()
 
 ## Features
 
+- **Guid (GuidV7) Identifiers**: Time-ordered, monotonically increasing identifiers for cache entries
 - **Persistent L2 Storage**: LiteDB-backed L2 store for durable cache data
 - **Optional L1 Caching**: Bounded in-memory L1 layer for fast lookups
 - **Configurable Lifetimes**: Singleton, Transient, or Scoped registration
@@ -272,7 +307,7 @@ Configuration class for the LiteDB caching module. Extends `Configuration` from 
 
 ### `Module<TValue>`
 
-DI module for registering `IOrderedCache<TValue>` with LiteDB-backed L2 storage. Uses in-memory store for L1 (when enabled) and LiteDB store for L2.
+DI module for registering `IOrderedCache<Guid, TValue>` with LiteDB-backed L2 storage. Uses in-memory store for L1 (when enabled) and `StoreGuid<TValue>` for L2 persistent storage with automatic GuidV7 ID generation.
 
 ## Dependencies
 
