@@ -9,11 +9,12 @@ using System.Collections.Generic;
 namespace Baubit.Caching.LiteDB.DI
 {
     /// <summary>
-    /// Dependency injection module for registering an <see cref="IOrderedCache{TValue}"/> with LiteDB-backed L2 storage.
-    /// Uses in-memory <see cref="Store{TValue}"/> for L1 (when enabled) and <see cref="Store{TValue}"/> for L2.
+    /// Dependency injection module for registering an <see cref="IOrderedCache{TId, TValue}"/> with LiteDB-backed L2 storage.
+    /// Uses in-memory <see cref="Store{TId, TValue}"/> for L1 (when enabled) and <see cref="StoreGuid{TValue}"/> for L2.
+    /// This module uses Guid (GuidV7) as the identifier type.
     /// </summary>
     /// <typeparam name="TValue">The type of values stored in the cache.</typeparam>
-    public class Module<TValue> : Baubit.Caching.DI.Module<TValue, Configuration>
+    public class Module<TValue> : Baubit.Caching.DI.Module<Guid, TValue, Configuration>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Module{TValue}"/> class
@@ -38,20 +39,20 @@ namespace Baubit.Caching.LiteDB.DI
         /// Builds the L1 data store as a bounded in-memory store with capacity limits.
         /// </summary>
         /// <param name="serviceProvider">The service provider to resolve <see cref="ILoggerFactory"/>.</param>
-        /// <returns>A bounded <see cref="Store{TValue}"/> configured with L1 capacity settings.</returns>
-        protected override IStore<TValue> BuildL1DataStore(IServiceProvider serviceProvider)
+        /// <returns>A bounded <see cref="Store{TId, TValue}"/> configured with L1 capacity settings.</returns>
+        protected override IStore<Guid, TValue> BuildL1DataStore(IServiceProvider serviceProvider)
         {
-            return new InMemory.Store<TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new InMemory.Store<Guid, TValue>(Configuration.L1MinCap, Configuration.L1MaxCap, _ => null, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         /// <summary>
         /// Builds the L2 data store as a LiteDB-backed persistent store.
         /// </summary>
         /// <param name="serviceProvider">The service provider to resolve <see cref="ILoggerFactory"/>.</param>
-        /// <returns>A <see cref="Store{TValue}"/> for persistent L2 storage.</returns>
-        protected override IStore<TValue> BuildL2DataStore(IServiceProvider serviceProvider)
+        /// <returns>A <see cref="StoreGuid{TValue}"/> for persistent L2 storage.</returns>
+        protected override IStore<Guid, TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
-            return new Store<TValue>(
+            return new StoreGuid<TValue>(
                 Configuration.DatabasePath,
                 Configuration.CollectionName,
                 serviceProvider.GetRequiredService<ILoggerFactory>());
@@ -61,10 +62,10 @@ namespace Baubit.Caching.LiteDB.DI
         /// Builds the metadata store for tracking cache entries.
         /// </summary>
         /// <param name="serviceProvider">The service provider (unused for in-memory metadata).</param>
-        /// <returns>A new <see cref="Metadata"/> instance.</returns>
-        protected override IMetadata BuildMetadata(IServiceProvider serviceProvider)
+        /// <returns>A new <see cref="Metadata{TId}"/> instance.</returns>
+        protected override IMetadata<Guid> BuildMetadata(IServiceProvider serviceProvider)
         {
-            return new Metadata();
+            return new Metadata<Guid>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }
