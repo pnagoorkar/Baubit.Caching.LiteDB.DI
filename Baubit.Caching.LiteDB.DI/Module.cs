@@ -1,5 +1,6 @@
 using Baubit.Caching.DI;
 using Baubit.Caching.InMemory;
+using LiteDB;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ namespace Baubit.Caching.LiteDB.DI
     /// <typeparam name="TValue">The type of values stored in the cache.</typeparam>
     public class Module<TValue> : Baubit.Caching.DI.Module<Guid, TValue, Configuration>
     {
+        private LiteDatabase _database;
         /// <summary>
         /// Initializes a new instance of the <see cref="Module{TValue}"/> class
         /// using an <see cref="IConfiguration"/> to bind settings.
@@ -46,14 +48,28 @@ namespace Baubit.Caching.LiteDB.DI
         }
 
         /// <summary>
+        /// Gets or creates the shared LiteDB database instance.
+        /// </summary>
+        /// <returns>The shared <see cref="LiteDatabase"/> instance.</returns>
+        private LiteDatabase GetOrCreateDatabase()
+        {
+            if (_database == null)
+            {
+                _database = new LiteDatabase(Configuration.DatabasePath);
+            }
+            return _database;
+        }
+
+        /// <summary>
         /// Builds the L2 data store as a LiteDB-backed persistent store.
+        /// Uses a shared database instance for both the store and enumerator factory.
         /// </summary>
         /// <param name="serviceProvider">The service provider to resolve <see cref="ILoggerFactory"/>.</param>
         /// <returns>A <see cref="StoreGuid{TValue}"/> for persistent L2 storage.</returns>
         protected override IStore<Guid, TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
             return new StoreGuid<TValue>(
-                Configuration.DatabasePath,
+                GetOrCreateDatabase(),
                 Configuration.CollectionName,
                 serviceProvider.GetRequiredService<ILoggerFactory>());
         }
@@ -66,6 +82,25 @@ namespace Baubit.Caching.LiteDB.DI
         protected override IMetadata<Guid> BuildMetadata(IServiceProvider serviceProvider)
         {
             return new Metadata<Guid>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
+        }
+
+        /// <summary>
+        /// Builds a factory for creating cache async enumerators with LiteDB persistence support.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider to resolve dependencies.</param>
+        /// <returns>A <see cref="CacheAsyncEnumeratorFactory{TId, TValue}"/> instance with LiteDB persistence.</returns>
+        protected override ICacheAsyncEnumeratorFactory<Guid, TValue> BuildCacheEnumeratorFactory(IServiceProvider serviceProvider)
+        {
+            var liteDbConfiguration = new Baubit.Caching.LiteDB.Configuration
+            {
+                ResumeSession = Configuration.ResumeSession,
+                PersistPositionEveryXMoves = Configuration.PersistPositionEveryXMoves,
+                PersistPositionBeforeMove = Configuration.PersistPositionBeforeMove
+            };
+
+            return new Baubit.Caching.LiteDB.CacheAsyncEnumeratorFactory<Guid, TValue>(
+                GetOrCreateDatabase(),
+                liteDbConfiguration);
         }
     }
 }
