@@ -15,7 +15,7 @@ namespace Baubit.Caching.LiteDB.DI
     /// This module uses Guid (GuidV7) as the identifier type.
     /// </summary>
     /// <typeparam name="TValue">The type of values stored in the cache.</typeparam>
-    public class Module<TValue> : Baubit.Caching.DI.Module<Guid, TValue, Configuration>
+    public abstract class Module<TValue> : Baubit.Caching.DI.Module<Guid, TValue, Configuration>
     {
         private LiteDatabase _database;
         /// <summary>
