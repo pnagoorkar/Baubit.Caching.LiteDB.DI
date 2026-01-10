@@ -1,4 +1,3 @@
-using Baubit.Caching.DI;
 using LiteDB;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -79,16 +78,14 @@ namespace Baubit.Caching.LiteDB.DI
         /// <returns>A <see cref="CacheAsyncEnumeratorFactory{TId, TValue}"/> instance with LiteDB persistence.</returns>
         protected override ICacheAsyncEnumeratorFactory<TId, TValue> BuildCacheEnumeratorFactory(IServiceProvider serviceProvider)
         {
-            var liteDbConfiguration = new Baubit.Caching.LiteDB.Configuration
+            var liteDbConfiguration = new LiteDB.Configuration
             {
                 ResumeSession = Configuration.ResumeSession,
                 PersistPositionEveryXMoves = Configuration.PersistPositionEveryXMoves,
                 PersistPositionBeforeMove = Configuration.PersistPositionBeforeMove
             };
 
-            return new Baubit.Caching.LiteDB.CacheAsyncEnumeratorFactory<TId, TValue>(
-                GetOrCreateDatabase(),
-                liteDbConfiguration);
+            return new CacheAsyncEnumeratorFactory<TId, TValue>(GetOrCreateDatabase(), liteDbConfiguration);
         }
     }
 }

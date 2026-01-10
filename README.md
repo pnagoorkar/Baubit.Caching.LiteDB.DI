@@ -24,7 +24,36 @@ Install-Package Baubit.Caching.LiteDB.DI
 
 ## Quick Start
 
-### Using Guid.Module (Recommended)
+### Using Long.Module
+
+For long-based cache identifiers:
+
+```csharp
+using Baubit.Caching.LiteDB.DI.Long;
+using Baubit.DI.Extensions;
+using Microsoft.Extensions.DependencyInjection;
+
+public class AppComponent : Component
+{
+    protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
+    {
+        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
+                          _ => { }, 
+                          config => new LoggingModule(config))
+                      .WithModule<Module<string>, Configuration>(config =>
+                      {
+                          config.DatabasePath = "cache.db";
+                          config.CollectionName = "entries";
+                          config.CacheLifetime = ServiceLifetime.Singleton;
+                      }, config => new Module<string>(config));
+    }
+}
+
+// Resolve the cache
+var cache = serviceProvider.GetService<IOrderedCache<long, string>>();
+```
+
+### Using Guid.Module
 
 For Guid (GuidV7)-based cache identifiers with automatic time-ordered ID generation:
 
@@ -63,41 +92,12 @@ await Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings())
 var cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
 ```
 
-### Using Long.Module
-
-For long-based cache identifiers:
-
-```csharp
-using Baubit.Caching.LiteDB.DI.Long;
-using Baubit.DI.Extensions;
-using Microsoft.Extensions.DependencyInjection;
-
-public class AppComponent : Component
-{
-    protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
-    {
-        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
-                          _ => { }, 
-                          config => new LoggingModule(config))
-                      .WithModule<Module<string>, Configuration>(config =>
-                      {
-                          config.DatabasePath = "cache.db";
-                          config.CollectionName = "entries";
-                          config.CacheLifetime = ServiceLifetime.Singleton;
-                      }, config => new Module<string>(config));
-    }
-}
-
-// Resolve the cache
-var cache = serviceProvider.GetService<IOrderedCache<long, string>>();
-```
-
 ### Using AddModule Directly
 
 For direct service collection registration:
 
 ```csharp
-using Baubit.Caching.LiteDB.DI.Guid;
+using Baubit.Caching.LiteDB.DI.Long;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
@@ -113,14 +113,14 @@ var module = new Module<string>(new Configuration
 module.Load(services);
 
 var serviceProvider = services.BuildServiceProvider();
-var cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
+var cache = serviceProvider.GetService<IOrderedCache<long, string>>();
 ```
 
 ## Features
 
 - **Two ID Type Options**: 
-  - `Guid.Module<TValue>`: Guid (GuidV7) identifiers with automatic time-ordered ID generation
   - `Long.Module<TValue>`: Long-based identifiers for numeric cache keys
+  - `Guid.Module<TValue>`: Guid (GuidV7) identifiers with automatic time-ordered ID generation
 - **Persistent L2 Storage**: LiteDB-backed L2 store for durable cache data
 - **Optional L1 Caching**: Bounded in-memory L1 layer for fast lookups
 - **Async Enumerator Persistence**: LiteDB-backed persistence for enumerator positions across application restarts
@@ -134,7 +134,7 @@ var cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
 Register multiple cache instances with different keys:
 
 ```csharp
-using Baubit.Caching.LiteDB.DI.Guid;
+using Baubit.Caching.LiteDB.DI.Long;
 using Baubit.DI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -163,8 +163,8 @@ public class AppComponent : Component
 }
 
 // Resolve keyed services
-var userCache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>("user-cache");
-var productCache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>("product-cache");
+var userCache = serviceProvider.GetKeyedService<IOrderedCache<long, string>>("user-cache");
+var productCache = serviceProvider.GetKeyedService<IOrderedCache<long, string>>("product-cache");
 ```
 
 ## Async Enumerator Persistence
@@ -172,7 +172,7 @@ var productCache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>(
 Enable session resume for async enumerators to persist and resume from saved positions:
 
 ```csharp
-using Baubit.Caching.LiteDB.DI.Guid;
+using Baubit.Caching.LiteDB.DI.Long;
 
 var module = new Module<string>(new Configuration 
 { 
@@ -203,23 +203,17 @@ var module = new Module<string>(new Configuration
 
 ## API Reference
 
-### `Guid.Module<TValue>`
-
-DI module for registering `IOrderedCache<Guid, TValue>` with LiteDB-backed L2 storage. Uses Guid (GuidV7) identifiers with automatic time-ordered ID generation.
-
 ### `Long.Module<TValue>`
 
 DI module for registering `IOrderedCache<long, TValue>` with LiteDB-backed L2 storage. Uses long-based identifiers for numeric cache keys.
 
+### `Guid.Module<TValue>`
+
+DI module for registering `IOrderedCache<Guid, TValue>` with LiteDB-backed L2 storage. Uses Guid (GuidV7) identifiers with automatic time-ordered ID generation.
+
 ### `Module<TId, TValue>`
 
 Abstract base DI module for registering `IOrderedCache<TId, TValue>` with LiteDB-backed L2 storage. Use `Guid.Module<TValue>` or `Long.Module<TValue>` instead of inheriting from this directly.
-
-## Dependencies
-
-- [Baubit.Caching.LiteDB](https://github.com/pnagoorkar/Baubit.Caching.LiteDB) v2026.2.3-prerelease
-- [Baubit.Caching.DI](https://github.com/pnagoorkar/Baubit.Caching.DI) v2026.2.2-prerelease
-- [Baubit.DI.Extensions](https://github.com/pnagoorkar/Baubit.DI.Extensions)
 
 ## Contributing
 

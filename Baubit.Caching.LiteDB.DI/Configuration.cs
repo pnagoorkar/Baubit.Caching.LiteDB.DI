@@ -1,5 +1,3 @@
-using Baubit.Caching.DI;
-
 namespace Baubit.Caching.LiteDB.DI
 {
     /// <summary>

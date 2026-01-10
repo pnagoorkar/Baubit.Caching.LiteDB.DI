@@ -41,11 +41,10 @@ namespace Baubit.Caching.LiteDB.DI.Long
         /// <returns>A bounded in-memory store configured with L1 capacity settings.</returns>
         protected override IStore<long, TValue> BuildL1DataStore(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.InMemory.Store<long, TValue>(
-                (long?)Configuration.L1MinCap,
-                (long?)Configuration.L1MaxCap,
-                _ => null,
-                serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new InMemory.Store<long, TValue>((long?)Configuration.L1MinCap,
+                                                    (long?)Configuration.L1MaxCap,
+                                                    _ => null,
+                                                    serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         /// <summary>
@@ -56,10 +55,7 @@ namespace Baubit.Caching.LiteDB.DI.Long
         /// <returns>A <see cref="StoreLong{TValue}"/> for persistent L2 storage.</returns>
         protected override IStore<long, TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.LiteDB.StoreLong<TValue>(
-                GetOrCreateDatabase(),
-                Configuration.CollectionName,
-                serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new StoreLong<TValue>(GetOrCreateDatabase(), Configuration.CollectionName, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         /// <summary>
@@ -69,9 +65,7 @@ namespace Baubit.Caching.LiteDB.DI.Long
         /// <returns>A new <see cref="Metadata{TId}"/> instance.</returns>
         protected override IMetadata<long> BuildMetadata(IServiceProvider serviceProvider)
         {
-            return new Metadata<long>(
-                Configuration.CacheConfiguration,
-                serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new Metadata<long>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }

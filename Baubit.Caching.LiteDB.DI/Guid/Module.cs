@@ -41,11 +41,10 @@ namespace Baubit.Caching.LiteDB.DI.Guid
         /// <returns>A bounded in-memory store configured with L1 capacity settings.</returns>
         protected override IStore<System.Guid, TValue> BuildL1DataStore(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.InMemory.Store<System.Guid, TValue>(
-                (long?)Configuration.L1MinCap,
-                (long?)Configuration.L1MaxCap,
-                _ => null,
-                serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new InMemory.Store<System.Guid, TValue>((long?)Configuration.L1MinCap,
+                                                           (long?)Configuration.L1MaxCap,
+                                                           _ => null,
+                                                           serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         /// <summary>
@@ -56,10 +55,9 @@ namespace Baubit.Caching.LiteDB.DI.Guid
         /// <returns>A <see cref="StoreGuid{TValue}"/> for persistent L2 storage.</returns>
         protected override IStore<System.Guid, TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
-            return new Baubit.Caching.LiteDB.StoreGuid<TValue>(
-                GetOrCreateDatabase(),
-                Configuration.CollectionName,
-                serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new StoreGuid<TValue>(GetOrCreateDatabase(),
+                                         Configuration.CollectionName,
+                                         serviceProvider.GetRequiredService<ILoggerFactory>());
         }
 
         /// <summary>
@@ -69,9 +67,7 @@ namespace Baubit.Caching.LiteDB.DI.Guid
         /// <returns>A new <see cref="Metadata{TId}"/> instance.</returns>
         protected override IMetadata<System.Guid> BuildMetadata(IServiceProvider serviceProvider)
         {
-            return new Metadata<System.Guid>(
-                Configuration.CacheConfiguration,
-                serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new Metadata<System.Guid>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }
