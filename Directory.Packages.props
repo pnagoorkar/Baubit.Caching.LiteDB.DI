@@ -1,0 +1,20 @@
+<Project>
+  
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Production Dependencies -->
+    <PackageVersion Include="Baubit.Caching.DI" Version="2026.2.2-prerelease" />
+    <PackageVersion Include="Baubit.Caching.LiteDB" Version="2026.2.3-prerelease" />
+    <PackageVersion Include="Baubit.DI.Extensions" Version="2025.51.1" />
+    
+    <!-- Test Dependencies -->
+    <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

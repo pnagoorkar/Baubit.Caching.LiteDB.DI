@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -22,10 +22,16 @@
     <None Include="../LICENSE" Pack="true" PackagePath="." />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Baubit.Caching.DI" Version="2026.2.2-prerelease" />
-    <PackageReference Include="Baubit.Caching.LiteDB" Version="2026.2.3-prerelease" />
-    <PackageReference Include="Baubit.DI.Extensions" Version="2025.51.1" />
+  <!-- Use project reference when UseLocalBaubitDependencies is true -->
+  <ItemGroup Condition="'$(UseLocalBaubitDependencies)' == 'true'">
+    <ProjectReference Include="$(BaubitCachingDIProjectPath)" />
+    <ProjectReference Include="$(BaubitCachingLiteDBProjectPath)" />
+  </ItemGroup>
+
+  <!-- Use package reference when UseLocalBaubitDependencies is false -->
+  <ItemGroup Condition="'$(UseLocalBaubitDependencies)' != 'true'">
+    <PackageReference Include="Baubit.Caching.DI"/>
+    <PackageReference Include="Baubit.Caching.LiteDB"/>
   </ItemGroup>
 
 </Project>
