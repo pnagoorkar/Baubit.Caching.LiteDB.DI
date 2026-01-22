@@ -68,7 +68,7 @@ namespace Baubit.Caching.LiteDB.DI
         /// Builds the metadata store for tracking cache entries.
         /// </summary>
         /// <param name="serviceProvider">The service provider to resolve <see cref="ILoggerFactory"/>.</param>
-        /// <returns>A new <see cref="Metadata{TId}"/> instance.</returns>
+        /// <returns>A new <see cref="IMetadata{TId}"/> instance.</returns>
         protected abstract override IMetadata<TId> BuildMetadata(IServiceProvider serviceProvider);
 
         /// <summary>

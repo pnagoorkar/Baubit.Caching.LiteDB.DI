@@ -16,7 +16,7 @@ namespace Baubit.Caching.LiteDB.DI.Test.Module
         {
         }
 
-        public TestModule(Configuration configuration, List<Baubit.DI.IModule> nestedModules = null) : base(configuration, nestedModules)
+        public TestModule(Configuration configuration, List<Baubit.DI.IModule>? nestedModules = null) : base(configuration, nestedModules)
         {
         }
     }
