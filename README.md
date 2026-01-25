@@ -8,10 +8,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)<br/>
 [![Known Vulnerabilities](https://snyk.io/test/github/pnagoorkar/Baubit.Caching.LiteDB.DI/badge.svg)](https://snyk.io/test/github/pnagoorkar/Baubit.Caching.LiteDB.DI)
 
-Dependency injection module for [Baubit.Caching.LiteDB](https://github.com/pnagoorkar/Baubit.Caching.LiteDB). Registers `IOrderedCache<TId, TValue>` with LiteDB-backed L2 persistent storage and optional in-memory L1 caching in your DI container.  
+Dependency injection module for [Baubit.Caching.LiteDB](https://github.com/pnagoorkar/Baubit.Caching.LiteDB). Registers `IOrderedCache<TId, TValue>` with LiteDB-backed L2 persistent storage and optional in-memory L1 caching in your DI container.
 
-
-> **Note:** This package provides a **generic modules** that can only be loaded programmatically. For configuration-based loading from appsettings.json, you'll need to create a concrete module with `[BaubitModule]` attribute and register it using a `ModuleRegistry`. See [Configuration-Based Loading](https://github.com/pnagoorkar/Baubit.DI#pattern-1-modules-from-appsettingsjson) for details.
+> **Note:** This package provides **generic modules** that can only be loaded programmatically. For configuration-based loading from appsettings.json, create a concrete module with `[BaubitModule]` attribute and register it using a `ModuleRegistry`. See [Configuration-Based Loading](https://github.com/pnagoorkar/Baubit.DI#pattern-1-modules-from-appsettingsjson) for details.
 
 [Learn more about Baubit.DI's application creation patterns](https://github.com/pnagoorkar/Baubit.DI#application-creation-patterns)
 
@@ -31,7 +30,9 @@ Install-Package Baubit.Caching.LiteDB.DI
 
 ### Cache Interface Requires ID Type
 
-`IOrderedCache<TValue>` changed to `IOrderedCache<TId, TValue>` to support generic ID types. This package provides modules that can register an IOrderedCache<,> with long or Guid(v7) identifiers
+`IOrderedCache<TValue>` changed to `IOrderedCache<TId, TValue>` to support generic ID types. This package provides two specialized modules:
+- `Long.Module<TValue>`: Registers `IOrderedCache<long, TValue>` with long-based identifiers
+- `Guid7.Module<TValue>`: Registers `IOrderedCache<Guid, TValue>` with time-ordered GuidV7 identifiers
 
 **Before:**
 ```csharp
@@ -59,10 +60,7 @@ public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
-                          _ => { }, 
-                          config => new LoggingModule(config))
-                      .WithModule<Module<string>, Configuration>(config =>
+        return builder.WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "cache.db";
                           config.CollectionName = "entries";
@@ -90,10 +88,7 @@ public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
-                          _ => { }, 
-                          config => new LoggingModule(config))
-                      .WithModule<Module<string>, Configuration>(config =>
+        return builder.WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "cache.db";
                           config.CollectionName = "entries";
@@ -164,10 +159,7 @@ public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
-                          _ => { }, 
-                          config => new LoggingModule(config))
-                      .WithModule<Module<string>, Configuration>(config =>
+        return builder.WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "user-cache.db";
                           config.CollectionName = "users";
@@ -191,7 +183,7 @@ var productCache = serviceProvider.GetKeyedService<IOrderedCache<long, string>>(
 
 ## Async Enumerator Persistence
 
-Enable session resume for async enumerators to persist and resume from saved positions:
+Enable session resume for async enumerators to persist and resume from saved positions across application restarts:
 
 ```csharp
 using Baubit.Caching.LiteDB.DI.Long;
@@ -200,28 +192,38 @@ var module = new Module<string>(new Configuration
 { 
     DatabasePath = "cache.db",
     CollectionName = "entries",
-    ResumeSession = true,              // Enable session resume
-    PersistPositionEveryXMoves = 100,  // Persist every 100 moves
-    PersistPositionBeforeMove = true,  // Persist before moving
+    ResumeSession = true,              // Load existing IDs on startup to resume sessions
+    PersistPositionEveryXMoves = 100,  // Persist position every 100 moves (0 = never persist)
+    PersistPositionBeforeMove = true,  // When true: persists BEFORE moving (may lose last entry on crash)
+                                       // When false: persists AFTER moving (better crash recovery)
     CacheLifetime = ServiceLifetime.Singleton
 });
 ```
 
+**Persistence Strategies:**
+
+- **`ResumeSession = true`**: On startup, the cache loads all existing entry IDs from LiteDB to restore the full cache state
+- **`PersistPositionEveryXMoves > 0`**: Async enumerator positions are saved to LiteDB at the specified interval
+- **`PersistPositionBeforeMove = true`**: Position is saved before moving to next entry (default, prevents duplicate processing)
+- **`PersistPositionBeforeMove = false`**: Position is saved after moving to next entry (better for crash recovery, ensures last read entry is saved)
+
 ## Configuration
+
+The `Configuration` class controls cache behavior, storage settings, and enumerator persistence.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `DatabasePath` | `string` | `"cache.db"` | Path to the LiteDB database file |
-| `CollectionName` | `string` | `"cache"` | Name of the collection within the database |
-| `IncludeL1Caching` | `bool` | `false` | Enable bounded L1 caching layer |
-| `L1MinCap` | `int` | `128` | Minimum capacity for L1 store |
-| `L1MaxCap` | `int` | `8192` | Maximum capacity for L1 store |
-| `ResumeSession` | `bool` | `false` | Enable async enumerator session resume |
-| `PersistPositionEveryXMoves` | `int` | `0` | Persist position every X moves (0 = disabled) |
-| `PersistPositionBeforeMove` | `bool` | `true` | Persist position before or after move |
-| `CacheConfiguration` | `Configuration` | `null` | Underlying cache configuration |
-| `CacheLifetime` | `ServiceLifetime` | `Singleton` | DI service lifetime |
-| `RegistrationKey` | `string` | `null` | Key for keyed service registration |
+| `DatabasePath` | `string` | `"cache.db"` | Path to the LiteDB database file for L2 storage |
+| `CollectionName` | `string` | `"cache"` | Name of the LiteDB collection for cache entries |
+| `IncludeL1Caching` | `bool` | `false` | Enable bounded in-memory L1 caching layer for fast lookups |
+| `L1MinCap` | `int` | `128` | Minimum capacity for L1 in-memory store (inherited from base) |
+| `L1MaxCap` | `int` | `8192` | Maximum capacity for L1 in-memory store (inherited from base) |
+| `ResumeSession` | `bool` | `false` | Load existing cache entry IDs from LiteDB on startup to restore cache state |
+| `PersistPositionEveryXMoves` | `int` | `0` | Number of `MoveNext` operations before persisting enumerator position (0 = disabled) |
+| `PersistPositionBeforeMove` | `bool` | `true` | If true, persist position before moving; if false, persist after moving |
+| `CacheConfiguration` | `Configuration` | `null` | Underlying cache configuration (from Baubit.Caching) |
+| `CacheLifetime` | `ServiceLifetime` | `Singleton` | DI service lifetime for cache registration |
+| `RegistrationKey` | `string` | `null` | Optional key for keyed service registration (multi-instance support) |
 
 ## API Reference
 
@@ -229,13 +231,35 @@ var module = new Module<string>(new Configuration
 
 DI module for registering `IOrderedCache<long, TValue>` with LiteDB-backed L2 storage. Uses long-based identifiers for numeric cache keys.
 
+**Namespace:** `Baubit.Caching.LiteDB.DI.Long`
+
+**Constructors:**
+- `Module(IConfiguration configuration)`: Load from configuration
+- `Module(Configuration configuration, List<IModule> nestedModules = null)`: Programmatic configuration
+
 ### `Guid7.Module<TValue>`
 
 DI module for registering `IOrderedCache<Guid, TValue>` with LiteDB-backed L2 storage. Uses Guid (GuidV7) identifiers with automatic time-ordered ID generation.
 
+**Namespace:** `Baubit.Caching.LiteDB.DI.Guid7`
+
+**Constructors:**
+- `Module(IConfiguration configuration)`: Load from configuration
+- `Module(Configuration configuration, List<IModule> nestedModules = null)`: Programmatic configuration
+
 ### `Module<TId, TValue>`
 
-Abstract base DI module for registering `IOrderedCache<TId, TValue>` with LiteDB-backed L2 storage. Use `Guid.Module<TValue>` or `Long.Module<TValue>` instead of inheriting from this directly.
+Abstract base DI module for registering `IOrderedCache<TId, TValue>` with LiteDB-backed L2 storage. Provides shared LiteDB database management and metadata initialization with optional session resume support.
+
+**Do not inherit from this directly.** Use `Long.Module<TValue>` or `Guid7.Module<TValue>` instead.
+
+**Key Methods:**
+- `GetOrCreateDatabase()`: Returns the shared LiteDB database instance
+- `BuildL1DataStore(IServiceProvider)`: Abstract method for building L1 in-memory store
+- `BuildL2DataStore(IServiceProvider)`: Abstract method for building L2 LiteDB-backed store
+- `BuildMetadata(IServiceProvider)`: Builds metadata with optional session resume support
+- `BuildCacheEnumeratorFactory(IServiceProvider)`: Builds factory for async enumerators with LiteDB persistence
+- `BuildCacheEnumeratorCollectionFactory(IServiceProvider)`: Builds factory for LiteDB-aware enumerator collections
 
 ## Contributing
 
