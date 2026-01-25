@@ -1,4 +1,3 @@
-using Baubit.Caching.InMemory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -56,16 +55,6 @@ namespace Baubit.Caching.LiteDB.DI.Long
         protected override IStore<long, TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
             return new StoreLong<TValue>(GetOrCreateDatabase(), Configuration.CollectionName, serviceProvider.GetRequiredService<ILoggerFactory>());
-        }
-
-        /// <summary>
-        /// Builds the metadata store for tracking cache entries.
-        /// </summary>
-        /// <param name="serviceProvider">The service provider to resolve <see cref="ILoggerFactory"/>.</param>
-        /// <returns>A new <see cref="Metadata{TId}"/> instance.</returns>
-        protected override IMetadata<long> BuildMetadata(IServiceProvider serviceProvider)
-        {
-            return new Metadata<long>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }

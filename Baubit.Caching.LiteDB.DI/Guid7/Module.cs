@@ -1,4 +1,3 @@
-using Baubit.Caching.InMemory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -58,16 +57,6 @@ namespace Baubit.Caching.LiteDB.DI.Guid7
             return new StoreGuid<TValue>(GetOrCreateDatabase(),
                                          Configuration.CollectionName,
                                          serviceProvider.GetRequiredService<ILoggerFactory>());
-        }
-
-        /// <summary>
-        /// Builds the metadata store for tracking cache entries.
-        /// </summary>
-        /// <param name="serviceProvider">The service provider to resolve <see cref="ILoggerFactory"/>.</param>
-        /// <returns>A new <see cref="Metadata{TId}"/> instance.</returns>
-        protected override IMetadata<System.Guid> BuildMetadata(IServiceProvider serviceProvider)
-        {
-            return new Metadata<System.Guid>(Configuration.CacheConfiguration, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }
