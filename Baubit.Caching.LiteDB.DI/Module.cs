@@ -102,5 +102,24 @@ namespace Baubit.Caching.LiteDB.DI
 
             return new CacheAsyncEnumeratorFactory<TId, TValue>(GetOrCreateDatabase(), liteDbConfiguration);
         }
+
+        /// <summary>
+        /// Builds a factory for creating LiteDB-aware cache enumerator collections.
+        /// Returns a factory that creates <see cref="LiteDB.CacheEnumeratorCollection{TId}"/> instances
+        /// which track both active and persisted enumerator positions when ResumeSession is enabled.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider to resolve dependencies.</param>
+        /// <returns>A factory function that creates <see cref="LiteDB.CacheEnumeratorCollection{TId}"/> instances.</returns>
+        protected override Func<Baubit.Caching.CacheEnumeratorCollection<TId>> BuildCacheEnumeratorCollectionFactory(IServiceProvider serviceProvider)
+        {
+            var liteDbConfiguration = new LiteDB.Configuration
+            {
+                ResumeSession = Configuration.ResumeSession,
+                PersistPositionEveryXMoves = Configuration.PersistPositionEveryXMoves,
+                PersistPositionBeforeMove = Configuration.PersistPositionBeforeMove
+            };
+
+            return () => new LiteDB.CacheEnumeratorCollection<TId>(liteDbConfiguration, GetOrCreateDatabase());
+        }
     }
 }
