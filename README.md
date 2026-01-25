@@ -10,7 +10,9 @@
 
 Dependency injection module for [Baubit.Caching.LiteDB](https://github.com/pnagoorkar/Baubit.Caching.LiteDB). Registers `IOrderedCache<TId, TValue>` with LiteDB-backed L2 persistent storage and optional in-memory L1 caching in your DI container.
 
-> **Note:** This package provides a **generic module** (`Module<TId, TValue>`) that can only be loaded programmatically. For configuration-based loading from appsettings.json, you'll need to create a concrete module with `[BaubitModule]` attribute and register it using a `ModuleRegistry`. See [Configuration-Based Loading](#configuration-based-loading-advanced) for details.
+> **Note:** This package provides **generic modules** that can only be loaded programmatically. For configuration-based loading from appsettings.json, create a concrete module with `[BaubitModule]` attribute and register it using a `ModuleRegistry`. See [Configuration-Based Loading](https://github.com/pnagoorkar/Baubit.DI#pattern-1-modules-from-appsettingsjson) for details.
+
+[Learn more about Baubit.DI's application creation patterns](https://github.com/pnagoorkar/Baubit.DI#application-creation-patterns)
 
 ## Installation
 
@@ -28,7 +30,9 @@ Install-Package Baubit.Caching.LiteDB.DI
 
 ### Cache Interface Requires ID Type
 
-`IOrderedCache<TValue>` changed to `IOrderedCache<Guid, TValue>` to support generic ID types. This module uses Guid (GuidV7) identifiers.
+`IOrderedCache<TValue>` changed to `IOrderedCache<TId, TValue>` to support generic ID types. This package provides two specialized modules:
+- `Long.Module<TValue>`: Registers `IOrderedCache<long, TValue>` with long-based identifiers
+- `Guid7.Module<TValue>`: Registers `IOrderedCache<Guid, TValue>` with time-ordered GuidV7 identifiers
 
 **Before:**
 ```csharp
@@ -37,61 +41,54 @@ IOrderedCache<string> cache = serviceProvider.GetService<IOrderedCache<string>>(
 
 **After:**
 ```csharp
+IOrderedCache<long, string> cache = serviceProvider.GetService<IOrderedCache<long, string>>();
 IOrderedCache<Guid, string> cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
-```
-
-### LiteDB Store Uses StoreGuid
-
-The L2 store now uses `StoreGuid<TValue>` instead of `Store<TValue>` for explicit Guid-based ID generation with automatic GuidV7 generation.
-
-**Impact:** Module implementation updated to use `StoreGuid<TValue>`. No user code changes required if using DI registration.
-
-### Migration Guide
-
-Update service resolution to include the `Guid` type parameter:
-
-```csharp
-// Update GetService calls
-var cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
-
-// Update GetKeyedService calls
-var cache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>("my-cache");
 ```
 
 ## Quick Start
 
-### Programmatic Module Loading
+### Using Long.Module
 
-Load modules programmatically using `IComponent`. This is the **recommended approach** for the generic `Module<TValue>`.
+For long-based cache identifiers:
 
 ```csharp
-using Baubit.Caching.LiteDB.DI;
-using Baubit.DI;
+using Baubit.Caching.LiteDB.DI.Long;
 using Baubit.DI.Extensions;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
-// Simple logging module for registering ILoggerFactory
-public class LoggingModule : Baubit.DI.Module<Baubit.DI.Configuration>
-{
-    public LoggingModule(Baubit.DI.Configuration config) : base(config) { }
-    
-    public override void Load(IServiceCollection services)
-    {
-        services.AddLogging();
-        base.Load(services);
-    }
-}
 
 public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
-                          _ => { }, 
-                          config => new LoggingModule(config))
-                      .WithModule<Module<string>, Configuration>(config =>
+        return builder.WithModule<Module<string>, Configuration>(config =>
+                      {
+                          config.DatabasePath = "cache.db";
+                          config.CollectionName = "entries";
+                          config.CacheLifetime = ServiceLifetime.Singleton;
+                      }, config => new Module<string>(config));
+    }
+}
+
+// Resolve the cache
+var cache = serviceProvider.GetService<IOrderedCache<long, string>>();
+```
+
+### Using Guid7.Module
+
+For Guid (GuidV7)-based cache identifiers with automatic time-ordered ID generation:
+
+```csharp
+using Baubit.Caching.LiteDB.DI.Guid7;
+using Baubit.DI;
+using Baubit.DI.Extensions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+public class AppComponent : Component
+{
+    protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
+    {
+        return builder.WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "cache.db";
                           config.CollectionName = "entries";
@@ -107,16 +104,18 @@ await Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings())
           .UseConfiguredServiceProviderFactory(componentsFactory: () => [new AppComponent()])
           .Build()
           .RunAsync();
+
+// Resolve the cache
+var cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
 ```
 
 ### Using AddModule Directly
 
-For direct service collection registration without the component builder.
+For direct service collection registration:
 
 ```csharp
-using Baubit.Caching.LiteDB.DI;
+using Baubit.Caching.LiteDB.DI.Long;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 var services = new ServiceCollection();
 services.AddLogging();
@@ -131,15 +130,28 @@ var module = new Module<string>(new Configuration
 module.Load(services);
 
 var serviceProvider = services.BuildServiceProvider();
-var cache = serviceProvider.GetService<IOrderedCache<Guid, string>>();
+var cache = serviceProvider.GetService<IOrderedCache<long, string>>();
 ```
+
+## Features
+
+- **Two ID Type Options**: 
+  - `Long.Module<TValue>`: Long-based identifiers for numeric cache keys
+  - `Guid7.Module<TValue>`: Guid (GuidV7) identifiers with automatic time-ordered ID generation
+- **Persistent L2 Storage**: LiteDB-backed L2 store for durable cache data
+- **Optional L1 Caching**: Bounded in-memory L1 layer for fast lookups
+- **Async Enumerator Persistence**: LiteDB-backed persistence for enumerator positions across application restarts
+- **Configurable Lifetimes**: Singleton, Transient, or Scoped registration
+- **Keyed Service Registration**: Register caches with a key for multi-instance scenarios
+- **IConfiguration Support**: Load settings from appsettings.json or other configuration sources
+- **Database Isolation**: Separate database files and collections per cache instance
 
 ## Keyed Service Registration
 
 Register multiple cache instances with different keys for multi-tenancy or different data types.
 
 ```csharp
-using Baubit.Caching.LiteDB.DI;
+using Baubit.Caching.LiteDB.DI.Long;
 using Baubit.DI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -147,10 +159,7 @@ public class AppComponent : Component
 {
     protected override Result<ComponentBuilder> Build(ComponentBuilder builder)
     {
-        return builder.WithModule<LoggingModule, Baubit.DI.Configuration>(
-                          _ => { }, 
-                          config => new LoggingModule(config))
-                      .WithModule<Module<string>, Configuration>(config =>
+        return builder.WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "user-cache.db";
                           config.CollectionName = "users";
@@ -168,151 +177,89 @@ public class AppComponent : Component
 }
 
 // Resolve keyed services
-var userCache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>("user-cache");
-var productCache = serviceProvider.GetKeyedService<IOrderedCache<Guid, string>>("product-cache");
+var userCache = serviceProvider.GetKeyedService<IOrderedCache<long, string>>("user-cache");
+var productCache = serviceProvider.GetKeyedService<IOrderedCache<long, string>>("product-cache");
 ```
 
-## Configuration-Based Loading (Advanced)
+## Async Enumerator Persistence
 
-The generic `Module<TValue>` cannot be loaded from configuration because generic type parameters cannot be specified in JSON. To enable configuration-based loading, create a **concrete module** for your specific value type.
-
-### Step 1: Create a Concrete Module
+Enable session resume for async enumerators to persist and resume from saved positions across application restarts:
 
 ```csharp
-using Baubit.Caching.LiteDB.DI;
-using Baubit.DI;
-using Microsoft.Extensions.Configuration;
-using System.Collections.Generic;
+using Baubit.Caching.LiteDB.DI.Long;
 
-namespace MyApp.Caching
-{
-    /// <summary>
-    /// Concrete LiteDB cache module for string values.
-    /// Can be loaded from appsettings.json using the "litedb-string-cache" key.
-    /// </summary>
-    [BaubitModule("litedb-string-cache")]
-    public class LiteDBStringCacheModule : Module<string>
-    {
-        // Constructor for configuration-based loading
-        public LiteDBStringCacheModule(IConfiguration configuration) 
-            : base(configuration) { }
-        
-        // Constructor for programmatic loading
-        public LiteDBStringCacheModule(Configuration configuration, List<IModule> nestedModules = null) 
-            : base(configuration, nestedModules) { }
-    }
-}
+var module = new Module<string>(new Configuration 
+{ 
+    DatabasePath = "cache.db",
+    CollectionName = "entries",
+    ResumeSession = true,              // Load existing IDs on startup to resume sessions
+    PersistPositionEveryXMoves = 100,  // Persist position every 100 moves (0 = never persist)
+    PersistPositionBeforeMove = true,  // When true: persists BEFORE moving (may lose last entry on crash)
+                                       // When false: persists AFTER moving (better crash recovery)
+    CacheLifetime = ServiceLifetime.Singleton
+});
 ```
 
-### Step 2: Create Module Registry
+**Persistence Strategies:**
 
-```csharp
-using Baubit.DI;
-
-namespace MyApp.Caching
-{
-    /// <summary>
-    /// Module registry for MyApp caching modules.
-    /// MUST call Register() before UseConfiguredServiceProviderFactory().
-    /// </summary>
-    [GeneratedModuleRegistry]
-    internal static partial class CachingModuleRegistry
-    {
-        // Register() method will be generated automatically
-    }
-}
-```
-
-### Step 3: Register and Load
-
-> **CRITICAL:** You **MUST** call `CachingModuleRegistry.Register()` before `UseConfiguredServiceProviderFactory()`. This registers your modules with Baubit.DI's module registry. **Forgetting this step will cause your modules to not be found**, leading to frustrating runtime errors.
-
-```csharp
-using MyApp.Caching;
-using Microsoft.Extensions.Hosting;
-
-// REQUIRED: Register modules before loading
-CachingModuleRegistry.Register();
-
-await Host.CreateApplicationBuilder()
-          .UseConfiguredServiceProviderFactory()
-          .Build()
-          .RunAsync();
-```
-
-**appsettings.json:**
-```json
-{
-  "modules": [
-    {
-      "key": "litedb-string-cache",
-      "configuration": {
-        "databasePath": "my-cache.db",
-        "collectionName": "entries",
-        "includeL1Caching": true,
-        "l1MinCap": 128,
-        "l1MaxCap": 8192,
-        "cacheLifetime": "Singleton",
-        "registrationKey": "my-cache"
-      }
-    }
-  ]
-}
-```
-
-### Step 4: Hybrid Loading
-
-Combine configuration-based and programmatic loading:
-
-```csharp
-using MyApp.Caching;
-
-// MUST call Register() first
-CachingModuleRegistry.Register();
-
-await Host.CreateApplicationBuilder()
-          .UseConfiguredServiceProviderFactory(componentsFactory: () => [new AppComponent()])
-          .Build()
-          .RunAsync();
-```
-
-## Features
-
-- **Guid (GuidV7) Identifiers**: Time-ordered, monotonically increasing identifiers for cache entries
-- **Persistent L2 Storage**: LiteDB-backed L2 store for durable cache data
-- **Optional L1 Caching**: Bounded in-memory L1 layer for fast lookups
-- **Configurable Lifetimes**: Singleton, Transient, or Scoped registration
-- **Keyed Service Registration**: Register caches with a key for multi-instance scenarios
-- **IConfiguration Support**: Load settings from appsettings.json or other configuration sources
-- **Database Isolation**: Separate database files and collections per cache instance
+- **`ResumeSession = true`**: On startup, the cache loads all existing entry IDs from LiteDB to restore the full cache state
+- **`PersistPositionEveryXMoves > 0`**: Async enumerator positions are saved to LiteDB at the specified interval
+- **`PersistPositionBeforeMove = true`**: Position is saved before moving to next entry (default, prevents duplicate processing)
+- **`PersistPositionBeforeMove = false`**: Position is saved after moving to next entry (better for crash recovery, ensures last read entry is saved)
 
 ## Configuration
 
+The `Configuration` class controls cache behavior, storage settings, and enumerator persistence.
+
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `DatabasePath` | `string` | `"cache.db"` | Path to the LiteDB database file |
-| `CollectionName` | `string` | `"cache"` | Name of the collection within the database |
-| `IncludeL1Caching` | `bool` | `false` | Enable bounded L1 caching layer |
-| `L1MinCap` | `int` | `128` | Minimum capacity for L1 store |
-| `L1MaxCap` | `int` | `8192` | Maximum capacity for L1 store |
-| `CacheConfiguration` | `Configuration` | `null` | Underlying cache configuration |
-| `CacheLifetime` | `ServiceLifetime` | `Singleton` | DI service lifetime |
-| `RegistrationKey` | `string` | `null` | Key for keyed service registration |
+| `DatabasePath` | `string` | `"cache.db"` | Path to the LiteDB database file for L2 storage |
+| `CollectionName` | `string` | `"cache"` | Name of the LiteDB collection for cache entries |
+| `IncludeL1Caching` | `bool` | `false` | Enable bounded in-memory L1 caching layer for fast lookups |
+| `L1MinCap` | `int` | `128` | Minimum capacity for L1 in-memory store (inherited from base) |
+| `L1MaxCap` | `int` | `8192` | Maximum capacity for L1 in-memory store (inherited from base) |
+| `ResumeSession` | `bool` | `false` | Load existing cache entry IDs from LiteDB on startup to restore cache state |
+| `PersistPositionEveryXMoves` | `int` | `0` | Number of `MoveNext` operations before persisting enumerator position (0 = disabled) |
+| `PersistPositionBeforeMove` | `bool` | `true` | If true, persist position before moving; if false, persist after moving |
+| `CacheConfiguration` | `Configuration` | `null` | Underlying cache configuration (from Baubit.Caching) |
+| `CacheLifetime` | `ServiceLifetime` | `Singleton` | DI service lifetime for cache registration |
+| `RegistrationKey` | `string` | `null` | Optional key for keyed service registration (multi-instance support) |
 
 ## API Reference
 
-### `Configuration`
+### `Long.Module<TValue>`
 
-Configuration class for the LiteDB caching module. Extends `Configuration` from Baubit.Caching.DI.
+DI module for registering `IOrderedCache<long, TValue>` with LiteDB-backed L2 storage. Uses long-based identifiers for numeric cache keys.
 
-### `Module<TValue>`
+**Namespace:** `Baubit.Caching.LiteDB.DI.Long`
 
-DI module for registering `IOrderedCache<Guid, TValue>` with LiteDB-backed L2 storage. Uses in-memory store for L1 (when enabled) and `StoreGuid<TValue>` for L2 persistent storage with automatic GuidV7 ID generation.
+**Constructors:**
+- `Module(IConfiguration configuration)`: Load from configuration
+- `Module(Configuration configuration, List<IModule> nestedModules = null)`: Programmatic configuration
 
-## Dependencies
+### `Guid7.Module<TValue>`
 
-- [Baubit.Caching.LiteDB](https://github.com/pnagoorkar/Baubit.Caching.LiteDB)
-- [Baubit.DI.Extensions](https://github.com/pnagoorkar/Baubit.DI.Extensions)
+DI module for registering `IOrderedCache<Guid, TValue>` with LiteDB-backed L2 storage. Uses Guid (GuidV7) identifiers with automatic time-ordered ID generation.
+
+**Namespace:** `Baubit.Caching.LiteDB.DI.Guid7`
+
+**Constructors:**
+- `Module(IConfiguration configuration)`: Load from configuration
+- `Module(Configuration configuration, List<IModule> nestedModules = null)`: Programmatic configuration
+
+### `Module<TId, TValue>`
+
+Abstract base DI module for registering `IOrderedCache<TId, TValue>` with LiteDB-backed L2 storage. Provides shared LiteDB database management and metadata initialization with optional session resume support.
+
+**Do not inherit from this directly.** Use `Long.Module<TValue>` or `Guid7.Module<TValue>` instead.
+
+**Key Methods:**
+- `GetOrCreateDatabase()`: Returns the shared LiteDB database instance
+- `BuildL1DataStore(IServiceProvider)`: Abstract method for building L1 in-memory store
+- `BuildL2DataStore(IServiceProvider)`: Abstract method for building L2 LiteDB-backed store
+- `BuildMetadata(IServiceProvider)`: Builds metadata with optional session resume support
+- `BuildCacheEnumeratorFactory(IServiceProvider)`: Builds factory for async enumerators with LiteDB persistence
+- `BuildCacheEnumeratorCollectionFactory(IServiceProvider)`: Builds factory for LiteDB-aware enumerator collections
 
 ## Contributing
 
