@@ -1,8 +1,11 @@
+using Baubit.Caching.InMemory;
 using LiteDB;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Baubit.Caching.LiteDB.DI
 {
@@ -15,7 +18,7 @@ namespace Baubit.Caching.LiteDB.DI
     public abstract class Module<TId, TValue> : Baubit.Caching.DI.Module<TId, TValue, Configuration>
         where TId : struct, IComparable<TId>, IEquatable<TId>
     {
-        private LiteDatabase _database;
+        private LiteDatabase database;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Module{TId, TValue}"/> class
@@ -42,11 +45,11 @@ namespace Baubit.Caching.LiteDB.DI
         /// <returns>The shared <see cref="LiteDatabase"/> instance.</returns>
         protected LiteDatabase GetOrCreateDatabase()
         {
-            if (_database == null)
+            if (database == null)
             {
-                _database = new LiteDatabase(Configuration.DatabasePath);
+                database = new LiteDatabase(Configuration.DatabasePath);
             }
-            return _database;
+            return database;
         }
 
         /// <summary>
@@ -64,12 +67,24 @@ namespace Baubit.Caching.LiteDB.DI
         /// <returns>A LiteDB-backed store for persistent L2 storage.</returns>
         protected abstract override IStore<TId, TValue> BuildL2DataStore(IServiceProvider serviceProvider);
 
-        /// <summary>
-        /// Builds the metadata store for tracking cache entries.
-        /// </summary>
-        /// <param name="serviceProvider">The service provider to resolve <see cref="ILoggerFactory"/>.</param>
-        /// <returns>A new <see cref="IMetadata{TId}"/> instance.</returns>
-        protected abstract override IMetadata<TId> BuildMetadata(IServiceProvider serviceProvider);
+        /// <inheritdoc/>
+        protected override IMetadata<TId> BuildMetadata(IServiceProvider serviceProvider)
+        {
+            // Only load existing IDs if ResumeSession is enabled
+            IEnumerable<TId> ids = null;
+            if (Configuration.ResumeSession)
+            {
+                var database = GetOrCreateDatabase();
+
+                var collection = database.GetCollection<Entry<TId, TValue>>(Configuration.CollectionName);
+                // Materialize the IDs immediately to avoid deferred execution issues
+                ids = collection.FindAll().Select(entry => entry.Id).ToList();
+            }
+
+            return new Metadata<TId>(Configuration.CacheConfiguration,
+                                     serviceProvider.GetRequiredService<ILoggerFactory>(),
+                                     ids);
+        }
 
         /// <summary>
         /// Builds a factory for creating cache async enumerators with LiteDB persistence support.
