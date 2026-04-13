@@ -16,7 +16,7 @@
     <!-- Production Dependencies -->
     <PackageVersion Include="Baubit.Caching.DI" Version="2026.4.1" />
     <PackageVersion Include="Baubit.Caching.LiteDB" Version="2026.4.1" />
-    <PackageVersion Include="Baubit.DI.Extensions" Version="2025.51.1" />
+    <PackageVersion Include="Baubit.DI.Extensions" Version="2026.16.1" />
     
     <!-- Test Dependencies -->
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
