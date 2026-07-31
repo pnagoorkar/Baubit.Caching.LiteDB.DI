@@ -101,7 +101,7 @@ public class AppComponent : Component
 }
 
 await Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings())
-          .UseConfiguredServiceProviderFactory(componentsFactory: () => [new AppComponent()])
+          .WithDefaultServiceProviderFactory(components: [new AppComponent()])
           .Build()
           .RunAsync();
 
