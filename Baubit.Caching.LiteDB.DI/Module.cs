@@ -18,7 +18,9 @@ namespace Baubit.Caching.LiteDB.DI
     public abstract class Module<TId, TValue> : Baubit.Caching.DI.Module<TId, TValue, Configuration>
         where TId : struct, IComparable<TId>, IEquatable<TId>
     {
-        private LiteDatabase database;
+        // Private, per-module-instance key so the database registration never collides with
+        // user registrations of LiteDatabase or with databases registered by other modules.
+        private readonly object databaseKey = new object();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Module{TId, TValue}"/> class
@@ -40,16 +42,44 @@ namespace Baubit.Caching.LiteDB.DI
         }
 
         /// <summary>
-        /// Gets or creates the shared LiteDB database instance.
+        /// Validates that the configured cache lifetime is supported.
         /// </summary>
-        /// <returns>The shared <see cref="LiteDatabase"/> instance.</returns>
-        protected LiteDatabase GetOrCreateDatabase()
+        /// <exception cref="NotSupportedException">
+        /// Thrown when <see cref="Configuration.CacheLifetime"/> is not <see cref="ServiceLifetime.Singleton"/>.
+        /// Transient and scoped LiteDB-backed caches are not supported yet.
+        /// </exception>
+        protected override void OnInitialized()
         {
-            if (database == null)
+            if (Configuration.CacheLifetime != ServiceLifetime.Singleton)
             {
-                database = new LiteDatabase(Configuration.DatabasePath);
+                throw new NotSupportedException($"LiteDB-backed caches support only the {nameof(ServiceLifetime.Singleton)} lifetime. " +
+                                                $"The configured lifetime '{Configuration.CacheLifetime}' is not supported yet.");
             }
-            return database;
+            base.OnInitialized();
+        }
+
+        /// <summary>
+        /// Registers the <see cref="LiteDatabase"/> used by this module as a container-owned singleton,
+        /// then registers the ordered cache.
+        /// The database is created lazily on first use and is disposed when the root service provider is disposed,
+        /// releasing the lock on the database file.
+        /// </summary>
+        /// <param name="services">The service collection to add services to.</param>
+        public override void Load(IServiceCollection services)
+        {
+            services.AddKeyedSingleton(databaseKey, (_, __) => new LiteDatabase(Configuration.DatabasePath));
+            base.Load(services);
+        }
+
+        /// <summary>
+        /// Gets the shared LiteDB database instance owned by the container, creating it on first use.
+        /// All caches built by this module within the same container share this instance.
+        /// </summary>
+        /// <param name="serviceProvider">The service provider the cache is being resolved from.</param>
+        /// <returns>The shared <see cref="LiteDatabase"/> instance.</returns>
+        protected LiteDatabase GetOrCreateDatabase(IServiceProvider serviceProvider)
+        {
+            return serviceProvider.GetRequiredKeyedService<LiteDatabase>(databaseKey);
         }
 
         /// <summary>
@@ -74,7 +104,7 @@ namespace Baubit.Caching.LiteDB.DI
             IEnumerable<TId> ids = null;
             if (Configuration.ResumeSession)
             {
-                var database = GetOrCreateDatabase();
+                var database = GetOrCreateDatabase(serviceProvider);
 
                 var collection = database.GetCollection<Entry<TId, TValue>>(Configuration.CollectionName);
                 // Materialize the IDs immediately to avoid deferred execution issues
@@ -100,7 +130,7 @@ namespace Baubit.Caching.LiteDB.DI
                 PersistPositionBeforeMove = Configuration.PersistPositionBeforeMove
             };
 
-            return new CacheAsyncEnumeratorFactory<TId, TValue>(GetOrCreateDatabase(), liteDbConfiguration);
+            return new CacheAsyncEnumeratorFactory<TId, TValue>(GetOrCreateDatabase(serviceProvider), liteDbConfiguration);
         }
 
         /// <summary>
@@ -119,7 +149,8 @@ namespace Baubit.Caching.LiteDB.DI
                 PersistPositionBeforeMove = Configuration.PersistPositionBeforeMove
             };
 
-            return () => new LiteDB.CacheEnumeratorCollection<TId>(liteDbConfiguration, GetOrCreateDatabase());
+            var database = GetOrCreateDatabase(serviceProvider);
+            return () => new LiteDB.CacheEnumeratorCollection<TId>(liteDbConfiguration, database);
         }
     }
 }

@@ -64,7 +64,6 @@ public class AppComponent : Component
                       {
                           config.DatabasePath = "cache.db";
                           config.CollectionName = "entries";
-                          config.CacheLifetime = ServiceLifetime.Singleton;
                       }, config => new Module<string>(config));
     }
 }
@@ -95,7 +94,6 @@ public class AppComponent : Component
                           config.IncludeL1Caching = true;
                           config.L1MinCap = 128;
                           config.L1MaxCap = 8192;
-                          config.CacheLifetime = ServiceLifetime.Singleton;
                       }, config => new Module<string>(config));
     }
 }
@@ -123,8 +121,7 @@ services.AddLogging();
 var module = new Module<string>(new Configuration 
 { 
     DatabasePath = "cache.db",
-    CollectionName = "entries",
-    CacheLifetime = ServiceLifetime.Singleton
+    CollectionName = "entries"
 });
 
 module.Load(services);
@@ -141,7 +138,7 @@ var cache = serviceProvider.GetService<IOrderedCache<long, string>>();
 - **Persistent L2 Storage**: LiteDB-backed L2 store for durable cache data
 - **Optional L1 Caching**: Bounded in-memory L1 layer for fast lookups
 - **Async Enumerator Persistence**: LiteDB-backed persistence for enumerator positions across application restarts
-- **Configurable Lifetimes**: Singleton, Transient, or Scoped registration
+- **Singleton Lifetime**: Caches are always registered as singletons (transient and scoped lifetimes are planned for a future release)
 - **Keyed Service Registration**: Register caches with a key for multi-instance scenarios
 - **IConfiguration Support**: Load settings from appsettings.json or other configuration sources
 - **Database Isolation**: Separate database files and collections per cache instance
@@ -164,14 +161,12 @@ public class AppComponent : Component
                           config.DatabasePath = "user-cache.db";
                           config.CollectionName = "users";
                           config.RegistrationKey = "user-cache";
-                          config.CacheLifetime = ServiceLifetime.Singleton;
                       }, config => new Module<string>(config))
                       .WithModule<Module<string>, Configuration>(config =>
                       {
                           config.DatabasePath = "product-cache.db";
                           config.CollectionName = "products";
                           config.RegistrationKey = "product-cache";
-                          config.CacheLifetime = ServiceLifetime.Singleton;
                       }, config => new Module<string>(config));
     }
 }
@@ -194,9 +189,8 @@ var module = new Module<string>(new Configuration
     CollectionName = "entries",
     ResumeSession = true,              // Load existing IDs on startup to resume sessions
     PersistPositionEveryXMoves = 100,  // Persist position every 100 moves (0 = never persist)
-    PersistPositionBeforeMove = true,  // When true: persists BEFORE moving (may lose last entry on crash)
+    PersistPositionBeforeMove = true   // When true: persists BEFORE moving (may lose last entry on crash)
                                        // When false: persists AFTER moving (better crash recovery)
-    CacheLifetime = ServiceLifetime.Singleton
 });
 ```
 
@@ -206,6 +200,10 @@ var module = new Module<string>(new Configuration
 - **`PersistPositionEveryXMoves > 0`**: Async enumerator positions are saved to LiteDB at the specified interval
 - **`PersistPositionBeforeMove = true`**: Position is saved before moving to next entry (default, prevents duplicate processing)
 - **`PersistPositionBeforeMove = false`**: Position is saved after moving to next entry (better for crash recovery, ensures last read entry is saved)
+
+**Database Lifetime:**
+
+The `LiteDatabase` is registered as a singleton owned by the DI container. It is opened on first cache resolution and disposed when the root service provider is disposed, which releases the lock on `DatabasePath` so the file can be reopened (e.g. with `ResumeSession = true`) or deleted in the same process.
 
 ## Configuration
 
@@ -222,7 +220,7 @@ The `Configuration` class controls cache behavior, storage settings, and enumera
 | `PersistPositionEveryXMoves` | `int` | `0` | Number of `MoveNext` operations before persisting enumerator position (0 = disabled) |
 | `PersistPositionBeforeMove` | `bool` | `true` | If true, persist position before moving; if false, persist after moving |
 | `CacheConfiguration` | `Configuration` | `null` | Underlying cache configuration (from Baubit.Caching) |
-| `CacheLifetime` | `ServiceLifetime` | `Singleton` | DI service lifetime for cache registration |
+| `CacheLifetime` | `ServiceLifetime` | `Singleton` | Read-only. LiteDB-backed caches are always singletons; a module configured with any other lifetime (e.g. via `IConfiguration`) throws `NotSupportedException` |
 | `RegistrationKey` | `string` | `null` | Optional key for keyed service registration (multi-instance support) |
 
 ## API Reference
@@ -254,12 +252,16 @@ Abstract base DI module for registering `IOrderedCache<TId, TValue>` with LiteDB
 **Do not inherit from this directly.** Use `Long.Module<TValue>` or `Guid7.Module<TValue>` instead.
 
 **Key Methods:**
-- `GetOrCreateDatabase()`: Returns the shared LiteDB database instance
+- `GetOrCreateDatabase(IServiceProvider)`: Returns the shared LiteDB database instance from the container, creating it on first use
 - `BuildL1DataStore(IServiceProvider)`: Abstract method for building L1 in-memory store
 - `BuildL2DataStore(IServiceProvider)`: Abstract method for building L2 LiteDB-backed store
 - `BuildMetadata(IServiceProvider)`: Builds metadata with optional session resume support
 - `BuildCacheEnumeratorFactory(IServiceProvider)`: Builds factory for async enumerators with LiteDB persistence
 - `BuildCacheEnumeratorCollectionFactory(IServiceProvider)`: Builds factory for LiteDB-aware enumerator collections
+
+## Future Support
+
+- **Transient and Scoped cache lifetimes**: Not supported yet. Multiple live caches over the same LiteDB collection generate conflicting ids, so all LiteDB-backed caches are currently registered as singletons.
 
 ## Contributing
 

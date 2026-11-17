@@ -54,7 +54,7 @@ namespace Baubit.Caching.LiteDB.DI.Guid7
         /// <returns>A <see cref="StoreGuid{TValue}"/> for persistent L2 storage.</returns>
         protected override IStore<System.Guid, TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
-            return new StoreGuid<TValue>(GetOrCreateDatabase(),
+            return new StoreGuid<TValue>(GetOrCreateDatabase(serviceProvider),
                                          Configuration.CollectionName,
                                          serviceProvider.GetRequiredService<ILoggerFactory>());
         }
