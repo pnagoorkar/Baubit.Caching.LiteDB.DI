@@ -54,7 +54,7 @@ namespace Baubit.Caching.LiteDB.DI.Long
         /// <returns>A <see cref="StoreLong{TValue}"/> for persistent L2 storage.</returns>
         protected override IStore<long, TValue> BuildL2DataStore(IServiceProvider serviceProvider)
         {
-            return new StoreLong<TValue>(GetOrCreateDatabase(), Configuration.CollectionName, serviceProvider.GetRequiredService<ILoggerFactory>());
+            return new StoreLong<TValue>(GetOrCreateDatabase(serviceProvider), Configuration.CollectionName, serviceProvider.GetRequiredService<ILoggerFactory>());
         }
     }
 }

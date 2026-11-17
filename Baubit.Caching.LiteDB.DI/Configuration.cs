@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Baubit.Caching.LiteDB.DI
 {
     /// <summary>
@@ -6,6 +8,17 @@ namespace Baubit.Caching.LiteDB.DI
     /// </summary>
     public class Configuration : Baubit.Caching.DI.Configuration
     {
+        /// <summary>
+        /// Gets the service lifetime of the registered cache.
+        /// LiteDB-backed caches are always registered as <see cref="ServiceLifetime.Singleton"/>.
+        /// </summary>
+        /// <remarks>
+        /// Transient and scoped lifetimes are not supported yet (planned for a future release):
+        /// multiple live caches over the same LiteDB collection generate conflicting ids.
+        /// This read-only property hides the settable base property. A module whose base value is set to any other
+        /// lifetime (for example, bound from <c>IConfiguration</c>) throws <see cref="System.NotSupportedException"/> on construction.
+        /// </remarks>
+        public new ServiceLifetime CacheLifetime => base.CacheLifetime;
         /// <summary>
         /// Gets or sets the path to the LiteDB database file.
         /// If not specified, a default path will be used.
